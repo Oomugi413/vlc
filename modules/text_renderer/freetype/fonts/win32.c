@@ -57,8 +57,35 @@
 
 #include "../platform_fonts.h"
 
-#if !VLC_WINSTORE_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 #define FONT_DIR_NT _T("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")
+
+static const struct
+{
+    const char *psz_generic;
+    const char *psz_local;
+}
+
+DWriteGenericMapping[] =
+{
+    { "cursive",   "comic sans ms" },
+    { "fantasy",   "impact" },
+    { "monospace", "courier new" },
+    { "sans",      "arial" },
+    { "sans-serif","arial" },
+    { "serif",     "times new roman" },
+    { "system-ui", "meiryo ui" },
+};
+
+static const char *DWrite_TranslateGenericFamily( const char *psz_family )
+{
+    for( size_t i=0; i<ARRAY_SIZE(DWriteGenericMapping); i++ )
+    {
+        if( !strcasecmp( DWriteGenericMapping[i].psz_generic, psz_family ) )
+            return DWriteGenericMapping[i].psz_local;
+    }
+    return psz_family;
+}
 
 static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family )
 {
@@ -344,7 +371,7 @@ static int CALLBACK EnumFontCallback(const ENUMLOGFONTEX *lpelfe, const NEWTEXTM
 
     vlc_family_t *p_family = ( vlc_family_t * ) lParam;
 
-    bool b_bold = ( lpelfe->elfLogFont.lfWeight == FW_BOLD );
+    bool b_bold = ( lpelfe->elfLogFont.lfWeight >= FW_BOLD );
     bool b_italic = ( lpelfe->elfLogFont.lfItalic != 0 );
 
     /*
@@ -400,7 +427,7 @@ static int CALLBACK EnumFontCallback(const ENUMLOGFONTEX *lpelfe, const NEWTEXTM
 const vlc_family_t *Win32_GetFamily( filter_t *p_filter, const char *psz_family )
 {
     filter_sys_t *p_sys = p_filter->p_sys;
-    char *psz_lc = ToLower( psz_family );
+    const char *psz_lc = DWrite_TranslateGenericFamily( psz_family );
 
     if( unlikely( !psz_lc ) )
         return NULL;
@@ -408,13 +435,13 @@ const vlc_family_t *Win32_GetFamily( filter_t *p_filter, const char *psz_family 
     vlc_family_t *p_family =
         vlc_dictionary_value_for_key( &p_sys->family_map, psz_lc );
 
-    free( psz_lc );
+    //free( psz_lc );
 
     if( p_family )
         return p_family;
 
-    p_family = NewFamily( p_filter, psz_family, &p_sys->p_families,
-                          &p_sys->family_map, psz_family );
+    p_family = NewFamily( p_filter, psz_lc, &p_sys->p_families,
+                          &p_sys->family_map, psz_lc );
 
     if( unlikely( !p_family ) )
         return NULL;

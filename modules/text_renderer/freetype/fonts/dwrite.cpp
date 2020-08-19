@@ -96,6 +96,33 @@ struct dw_sys_t
     }
 };
 
+static const struct
+{
+    const char *psz_generic;
+    const char *psz_local;
+}
+
+DWriteGenericMapping[] =
+{
+    { "cursive",   "comic sans ms" },
+    { "fantasy",   "impact" },
+    { "monospace", "courier new" },
+    { "sans",      "arial" },
+    { "sans-serif","arial" },
+    { "serif",     "times new roman" },
+    { "system-ui", "meiryo ui" },
+};
+
+static const char *DWrite_TranslateGenericFamily( const char *psz_family )
+{
+    for( size_t i=0; i<ARRAY_SIZE(DWriteGenericMapping); i++ )
+    {
+        if( !strcasecmp( DWriteGenericMapping[i].psz_generic, psz_family ) )
+            return DWriteGenericMapping[i].psz_local;
+    }
+    return psz_family;
+}
+
 static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family )
 {
     while( *pp_list )
@@ -599,27 +626,28 @@ extern "C" const vlc_family_t *DWrite_GetFamily( filter_t *p_filter, const char 
     UINT32 i_index;
     BOOL b_exists = false;
 
-    char *psz_lc = ToLower( psz_family );
+    const char *psz_lc = DWrite_TranslateGenericFamily( psz_family );
+
     if( unlikely( !psz_lc ) )
         return NULL;
 
     vlc_family_t *p_family =
         ( vlc_family_t * ) vlc_dictionary_value_for_key( &p_sys->family_map, psz_lc );
 
-    free( psz_lc );
+    //free( psz_lc );
 
     if( p_family )
         return p_family;
 
-    p_family = NewFamily( p_filter, psz_family, &p_sys->p_families,
-                          &p_sys->family_map, psz_family );
+    p_family = NewFamily( p_filter, psz_lc, &p_sys->p_families,
+                          &p_sys->family_map, psz_lc );
 
     if( unlikely( !p_family ) )
         return NULL;
 
     msg_Dbg( p_filter, "DWrite_GetFamily(): family name: %s", psz_family );
 
-    wchar_t *pwsz_family = ToWide( psz_family );
+    wchar_t *pwsz_family = ToWide( psz_lc );
     if( unlikely( !pwsz_family ) )
         goto done;
 
