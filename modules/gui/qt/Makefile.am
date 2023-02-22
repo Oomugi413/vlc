@@ -14,7 +14,7 @@ SUFFIXES += .ui .h .hpp .moc.cpp
 libqt_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) \
 	-I$(srcdir)/gui/qt -I$(builddir)/gui/qt
 libqt_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) $(CXXFLAGS_qt)
-libqt_plugin_la_LIBADD = $(QT_LIBS) $(LIBS_qt) $(LIBM)
+libqt_plugin_la_LIBADD = $(QT_LIBS) $(LIBS_qt) $(LIBM) $(QT5_PLUGINS_LIBS) $(QT5_PLATFORM_PLUGINS_LIBS)
 libqt_plugin_la_LDFLAGS = $(AM_LDFLAGS) -rpath '$(guidir)'
 if HAVE_DARWIN
 libqt_plugin_la_LDFLAGS += -Wl,-framework,Cocoa
@@ -37,6 +37,17 @@ libqt_plugin_la_LIBADD += $(LIBCOM) -lcomctl32 -luuid
 endif
 if UPDATE_CHECK
 libqt_plugin_la_CPPFLAGS += -DUPDATE_CHECK
+endif
+if HAVE_QT5_DECLARATIVE_PRIVATE
+libqt_plugin_la_CPPFLAGS += -DQT5_DECLARATIVE_PRIVATE \
+	-I$(QT_INCLUDE_DIRECTORY)/QtCore/$(QT_VERSION) \
+	-I$(QT_INCLUDE_DIRECTORY)/QtCore/$(QT_VERSION)/QtCore \
+	-I$(QT_INCLUDE_DIRECTORY)/QtGui/$(QT_VERSION) \
+	-I$(QT_INCLUDE_DIRECTORY)/QtGui/$(QT_VERSION)/QtGui \
+	-I$(QT_INCLUDE_DIRECTORY)/QtQml/$(QT_VERSION) \
+	-I$(QT_INCLUDE_DIRECTORY)/QtQml/$(QT_VERSION)/QtQml \
+	-I$(QT_INCLUDE_DIRECTORY)/QtQuick/$(QT_VERSION) \
+	-I$(QT_INCLUDE_DIRECTORY)/QtQuick/$(QT_VERSION)/QtQuick
 endif
 
 libqt_plugin_la_SOURCES = \

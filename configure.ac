@@ -3851,21 +3851,72 @@ AC_ARG_ENABLE(qt, [
 ])
 have_qt5_x11="no"
 AS_IF([test "${enable_qt}" != "no"], [
-  PKG_CHECK_MODULES([QT], [Qt5Core >= 5.5.0 Qt5Widgets Qt5Gui Qt5Svg], [
+  PKG_CHECK_MODULES([QT], [Qt5Core >= 5.11.0 Qt5Widgets Qt5Gui Qt5Quick Qt5QuickWidgets Qt5QuickControls2 Qt5Svg], [
       PKG_CHECK_MODULES([QT5_X11], [Qt5X11Extras], [
           have_qt5_x11="yes"
       ],[
           AC_MSG_WARN([Not building Qt Interface with X11 helpers.])
       ])
+
       QT_PATH="$(eval $PKG_CONFIG --variable=exec_prefix Qt5Core)"
       QT_HOST_PATH="$(eval $PKG_CONFIG --variable=host_bins Qt5Core)"
+      QT_INCLUDE_DIRECTORY="$(eval $PKG_CONFIG --variable=includedir Qt5Core)"
       QT_VERSION="$(eval $PKG_CONFIG --modversion Qt5Gui)"
       AC_PATH_PROGS(MOC, [moc-qt5 moc], moc, ["${QT_HOST_PATH}" "${QT_PATH}/bin"])
       AC_PATH_PROGS(RCC, [rcc-qt5 rcc], rcc, ["${QT_HOST_PATH}" "${QT_PATH}/bin"])
       AC_PATH_PROGS(UIC, [uic-qt5 uic], uic, ["${QT_HOST_PATH}" "${QT_PATH}/bin"])
+      AC_PATH_PROGS(QMLCACHE, [qmlcachegen-qt5 qmlcachegen], no, ["${QT_HOST_PATH}" "${QT_PATH}/bin"])
+      AS_IF([test "${QMLCACHE}" = "no"], [
+          AC_MSG_WARN([qmlcachegen not found])
+      ])
+
+      dnl Check private headers avaibility
+      VLC_SAVE_FLAGS
+      CPPFLAGS="${CPPFLAGS} ${QT_CFLAGS}"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtCore/${QT_VERSION}"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtCore/${QT_VERSION}/QtCore"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtGui/${QT_VERSION}"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtGui/${QT_VERSION}/QtGui"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtQml/${QT_VERSION}"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtQml/${QT_VERSION}/QtQml"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtQuick/${QT_VERSION}"
+      CPPFLAGS="${CPPFLAGS} -I${QT_INCLUDE_DIRECTORY}/QtQuick/${QT_VERSION}/QtQuick"
+
+      AS_IF([test "${SYS}" != "mingw32"], [
+          CPPFLAGS="${CPPFLAGS} -fPIC"
+      ])
+
+      AC_LANG_PUSH([C++])
+      AC_CHECK_HEADERS([private/qquickitem_p.h private/qquickwindow_p.h],
+         [have_declarative_private="yes"], [])
+      AC_LANG_POP([C++])
+      VLC_RESTORE_FLAGS
+
+      VLC_SAVE_FLAGS
+      CPPFLAGS="${CPPFLAGS} ${QT_CFLAGS}"
+      AC_COMPILE_IFELSE(
+        [AC_LANG_PROGRAM([[#include <qconfig.h>]],[[QT_STATIC]])],
+        [have_qt_static=yes],[have_qt_static=no])
+      VLC_RESTORE_FLAGS
+
+      AS_IF([test "${have_qt_static}" = "yes"],[
+        PKG_CHECK_MODULES([QT5_PLUGINS], [
+          qtgraphicaleffectsplugin qtquick2plugin qtquickcontrols2plugin
+          qtquicktemplates2plugin qquicklayoutsplugin windowplugin
+          qmlshapesplugin qmlplugin modelsplugin qsvg qsvgicon
+          qtgraphicaleffectsprivate qjpeg ])
+
+        AS_IF([test "${SYS}" = "mingw32"], [
+          PKG_CHECK_MODULES([QT5_PLATFORM_PLUGINS], [qwindows qwindowsvistastyle])
+        ])
+
+        AS_IF([test "${SYS}" = "darwin" -a "${HAVE_OSX}" = 1], [
+          PKG_CHECK_MODULES([QT5_PLATFORM_PLUGINS], [qcocoa])
+        ])
+      ])
     ], [
       AS_IF([test -n "${enable_qt}"],[
-        AC_MSG_ERROR([${QT_PKG_ERRORS}.])
+        AC_MSG_ERROR([${QT_PKG_ERRORS}. If you want to build VLC without GUI, pass --disable-qt.])
       ],[
         AC_MSG_WARN([${QT_PKG_ERRORS}.])
       ])
@@ -3873,12 +3924,23 @@ AS_IF([test "${enable_qt}" != "no"], [
     ])
 ])
 
+AC_ARG_ENABLE([qt-qml-cache],
+  AS_HELP_STRING([--enable-qt-qml-cache],
+    [enable qml cache generation]))
+AM_CONDITIONAL([HAVE_QMLCACHE], [test "${enable_qt_qml_cache}" = "yes" && test "$QMLCACHE" != "no"])
+
+AC_ARG_ENABLE([qt-qml-debug],
+  AS_HELP_STRING([--enable-qt-qml-debug], [enable qml debugger]))
+AM_CONDITIONAL(QT_QML_DEBUG, [test "${enable_qt_qml_debug}" = "yes"])
+
 AS_IF([test "${enable_qt}" != "no"], [
   ALIASES="${ALIASES} qvlc"
 ])
 AC_SUBST(QT_VERSION)
+AC_SUBST([QT_INCLUDE_DIRECTORY])
 AM_CONDITIONAL(ENABLE_QT, [test "$enable_qt" != "no"])
 AM_CONDITIONAL([HAVE_QT5_X11], [test "${have_qt5_x11}" = "yes"])
+AM_CONDITIONAL([HAVE_QT5_DECLARATIVE_PRIVATE], [test "${have_declarative_private}" = "yes"])
 
 dnl
 dnl detect kde4-config patch (used for kde solids).

@@ -38,7 +38,10 @@
 #include <assert.h>
 
 #include <QWindow>
-#include <qpa/qplatformnativeinterface.h>
+#ifndef QT5_GUI_PRIVATE
+#warning "qplatformnativeinterface.h header is required for DirectComposiiton compositor"
+#endif
+#include <QtGui/qpa/qplatformnativeinterface.h>
 
 #define WM_APPCOMMAND 0x0319
 
