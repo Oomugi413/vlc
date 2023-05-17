@@ -40,38 +40,20 @@
 using Microsoft::WRL::ComPtr;
 using namespace std;
 
-typedef HRESULT ( WINAPI *DWriteCreateFactoryProc ) (
-        _In_ DWRITE_FACTORY_TYPE factory_type,
-        _In_ REFIID              iid,
-        _Out_ IUnknown         **pp_factory );
-
 struct dw_sys_t
 {
-    HMODULE                                  p_dw_dll;
     ComPtr< IDWriteFactory2 >                p_dw_factory;
     ComPtr< IDWriteFontCollection >          p_dw_system_fonts;
     ComPtr< IDWriteNumberSubstitution >      p_dw_substitution;
     ComPtr< IDWriteFontFallback >            p_dw_fallbacks;
     vector< FT_Stream >                      streams;
 
-    dw_sys_t( HMODULE p_dw_dll ) : p_dw_dll( p_dw_dll )
+    dw_sys_t( )
     {
         /* This will fail on versions of Windows prior to 8.1 */
-#if VLC_WINSTORE_APP
         if( DWriteCreateFactory( DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory2 ),
                 reinterpret_cast<IUnknown **>( p_dw_factory.GetAddressOf() ) ) )
             throw runtime_error( "failed to create DWrite factory" );
-#else
-        DWriteCreateFactoryProc pf =
-                ( DWriteCreateFactoryProc ) GetProcAddress( p_dw_dll, "DWriteCreateFactory" );
-
-        if( pf == NULL )
-            throw runtime_error( "GetProcAddress() failed" );
-
-        if( pf( DWRITE_FACTORY_TYPE_SHARED, __uuidof( IDWriteFactory2 ),
-                reinterpret_cast<IUnknown **>( p_dw_factory.GetAddressOf() ) ) )
-            throw runtime_error( "failed to create DWrite factory" );
-#endif
 
         if( p_dw_factory->GetSystemFontCollection( p_dw_system_fonts.GetAddressOf() ) )
             throw runtime_error( "GetSystemFontCollection() failed" );
@@ -134,29 +116,14 @@ static inline void AppendFamily( vlc_family_t **pp_list, vlc_family_t *p_family 
 extern "C" int InitDWrite( filter_t *p_filter )
 {
     dw_sys_t *p_dw_sys;
-    HMODULE p_dw_dll = NULL;
 
     try
     {
-#if VLC_WINSTORE_APP
-        p_dw_sys = new dw_sys_t( p_dw_dll );
-#else
-        p_dw_dll = LoadLibrary( TEXT( "Dwrite.dll" ) );
-        if( p_dw_dll == NULL )
-            return VLC_EGENERIC;
-
-        p_dw_sys = new dw_sys_t( p_dw_dll );
-#endif
+        p_dw_sys = new dw_sys_t( );
     }
     catch( const exception &e )
     {
-#if !VLC_WINSTORE_APP
-        FreeLibrary( p_dw_dll );
-        (void)e;
-#else
         msg_Err( p_filter, "InitDWrite(): %s", e.what() );
-#endif
-
         return VLC_EGENERIC;
     }
 
@@ -170,16 +137,7 @@ extern "C" int ReleaseDWrite( filter_t *p_filter )
     filter_sys_t *p_sys = p_filter->p_sys;
     dw_sys_t *p_dw_sys = ( dw_sys_t * ) p_sys->p_dw_sys;
 
-#if VLC_WINSTORE_APP
     delete p_dw_sys;
-#else
-    HMODULE p_dw_dll = NULL;
-    if( p_dw_sys && p_dw_sys->p_dw_dll )
-        p_dw_dll = p_dw_sys->p_dw_dll;
-
-    delete p_dw_sys;
-    if( p_dw_dll ) FreeLibrary( p_dw_dll );
-#endif
 
     return VLC_SUCCESS;
 }

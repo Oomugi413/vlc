@@ -15,11 +15,10 @@ libfreetype_plugin_la_LDFLAGS = $(FREETYPE_LDFLAGS) -rpath '$(textdir)'
 if HAVE_WIN32
 libfreetype_plugin_la_SOURCES += text_renderer/freetype/fonts/dwrite.cpp
 libfreetype_plugin_la_LINK = $(CXXLINK)
+libfreetype_plugin_la_LIBADD += -ldwrite -luuid
 if HAVE_WIN32_DESKTOP
 libfreetype_plugin_la_SOURCES += text_renderer/freetype/fonts/win32.c
-libfreetype_plugin_la_LIBADD += -liconv -lz -lusp10 -lgdi32 -luuid
-else
-libfreetype_plugin_la_LIBADD += -ldwrite -luuid
+libfreetype_plugin_la_LIBADD += -liconv -lz -lusp10 -lgdi32
 endif
 else
 libfreetype_plugin_la_LINK = $(LINK)
