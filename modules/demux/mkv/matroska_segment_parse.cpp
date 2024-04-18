@@ -2142,6 +2142,9 @@ bool matroska_segment_c::TrackInit( mkv_track_t * p_tk )
 
             vars.p_fmt->subs.dvb.i_id = ( ancillary_id << 16 ) | page_id;
         }
+        S_CASE("S_ARIBSUB") {
+            vars.p_fmt->i_codec = VLC_CODEC_ARIB_A;
+        }
         S_CASE("S_HDMV/PGS") {
             vars.p_fmt->i_codec = VLC_CODEC_BD_PG;
         }
