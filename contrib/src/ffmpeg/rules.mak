@@ -32,6 +32,7 @@ FFMPEGCONF = \
 	--disable-doc \
 	--disable-encoder=vorbis \
 	--disable-decoder=opus \
+	--enable-libaribcaption \
 	--enable-libgsm \
 	--disable-debug \
 	--disable-avdevice \
@@ -209,6 +210,8 @@ endif
 else # !Windows
 FFMPEGCONF += --enable-pthreads
 endif
+
+DEPS_ffmpeg += libaribcaption
 
 # Solaris
 ifdef HAVE_SOLARIS
