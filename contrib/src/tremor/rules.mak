@@ -1,20 +1,18 @@
 # tremor (fixed-point Vorbis)
 
-TREMOR_URL := https://gitlab.xiph.org/xiph/tremor.git
-TREMOR_HASH := b56ffce0
+TREMOR_URL := https://gitlab.xiph.org/xiph/tremor/-/archive/master/tremor-master.tar.gz
 
-ifndef HAVE_FPU
 PKGS += tremor
+ifeq ($(call need_pkg,"tremor"),)
+PKGS_FOUND += tremor
 endif
 
-$(TARBALLS)/tremor-git.tar.xz:
-	$(call download_git,$(TREMOR_URL),master,$(TREMOR_HASH))
+$(TARBALLS)/tremor-master.tar.gz:
+	$(call download_pkg,$(TREMOR_URL),tremor)
 
-.sum-tremor: tremor-git.tar.xz
-	$(call check_githash,$(TREMOR_HASH))
-	touch $@
+.sum-tremor: tremor-master.tar.gz
 
-tremor: tremor-git.tar.xz .sum-tremor
+tremor: tremor-master.tar.gz .sum-tremor
 	# Stuff that does not depend on libogg
 	$(UNPACK)
 	$(APPLY) $(SRC)/tremor/tremor.patch
