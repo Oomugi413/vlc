@@ -1,0 +1,113 @@
+diff --git a/libavformat/matroska.c b/libavformat/matroska.c
+index 7c56aba..dab4624 100644
+--- a/libavformat/matroska.c
++++ b/libavformat/matroska.c
+@@ -76,6 +76,7 @@ const CodecTags ff_mkv_codec_tags[]={
+     {"S_DVBSUB"         , AV_CODEC_ID_DVB_SUBTITLE},
+     {"S_HDMV/PGS"       , AV_CODEC_ID_HDMV_PGS_SUBTITLE},
+     {"S_HDMV/TEXTST"    , AV_CODEC_ID_HDMV_TEXT_SUBTITLE},
++    {"S_ARIBSUB"        , AV_CODEC_ID_ARIB_CAPTION},
+ 
+     {"V_AV1"            , AV_CODEC_ID_AV1},
+     {"V_DIRAC"          , AV_CODEC_ID_DIRAC},
+diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
+index c47518b..5e4854d 100644
+--- a/libavformat/matroskadec.c
++++ b/libavformat/matroskadec.c
+@@ -45,6 +45,7 @@
+ #include "libavutil/time_internal.h"
+ #include "libavutil/spherical.h"
+ 
++#include "libavcodec/avcodec.h"
+ #include "libavcodec/bytestream.h"
+ #include "libavcodec/flac.h"
+ #include "libavcodec/mpeg4audio.h"
+@@ -2723,10 +2724,40 @@ static int matroska_parse_tracks(AVFormatContext *s)
+             /* we don't need any value stored in CodecPrivate.
+                make sure that it's not exported as extradata. */
+             track->codec_priv.size = 0;
++
+         } else if (codec_id == AV_CODEC_ID_AV1 && track->codec_priv.size) {
+             /* For now, propagate only the OBUs, if any. Once libavcodec is
+                updated to handle isobmff style extradata this can be removed. */
+             extradata_offset = 4;
++        } else if (codec_id == AV_CODEC_ID_ARIB_CAPTION && track->codec_priv.size == 3) {
++            int component_tag = track->codec_priv.data[0];
++            int data_component_id = AV_RB16(track->codec_priv.data + 1);
++
++            switch (data_component_id) {
++            case 0x0008:
++                // [0x30..0x37] are component tags utilized for
++                // non-mobile captioning service ("profile A").
++                if (component_tag >= 0x30 && component_tag <= 0x37) {
++                    st->codecpar->profile = FF_PROFILE_ARIB_PROFILE_A;
++                }
++                break;
++            case 0x0012:
++                // component tag 0x87 signifies a mobile/partial reception
++                // (1seg) captioning service ("profile C").
++                if (component_tag == 0x87) {
++                    st->codecpar->profile = FF_PROFILE_ARIB_PROFILE_C;
++                }
++                break;
++            default:
++                break;
++            }
++
++            if (st->codecpar->profile == FF_PROFILE_UNKNOWN)
++                av_log(matroska->ctx, AV_LOG_WARNING,
++                       "Unknown ARIB caption profile utilized: %02x / %04x\n",
++                       component_tag, data_component_id);
++
++            track->codec_priv.size = 0;
+         }
+         track->codec_priv.size -= extradata_offset;
+ 
+diff --git a/libavformat/matroskaenc.c b/libavformat/matroskaenc.c
+index b4284a8..f56d6b2 100644
+--- a/libavformat/matroskaenc.c
++++ b/libavformat/matroskaenc.c
+@@ -51,6 +51,7 @@
+ #include "libavutil/samplefmt.h"
+ #include "libavutil/stereo3d.h"
+ 
++#include "libavcodec/avcodec.h"
+ #include "libavcodec/xiph.h"
+ #include "libavcodec/mpeg4audio.h"
+ 
+@@ -749,6 +750,27 @@ static int mkv_write_native_codecprivate(AVFormatContext *s, AVIOContext *pb,
+         else
+             put_ebml_void(pb, MAX_PCE_SIZE + 2 + 4);
+         break;
++    case AV_CODEC_ID_ARIB_CAPTION: {
++        unsigned stream_identifier, data_component_id;
++        switch (par->profile) {
++        case FF_PROFILE_ARIB_PROFILE_A:
++            stream_identifier = 0x30;
++            data_component_id = 0x0008;
++            break;
++        case FF_PROFILE_ARIB_PROFILE_C:
++            stream_identifier = 0x87;
++            data_component_id = 0x0012;
++            break;
++        default:
++            av_log(s, AV_LOG_ERROR,
++                   "Unset/unknown ARIB caption profile %d utilized!\n",
++                   par->profile);
++            return AVERROR_INVALIDDATA;
++        }
++        avio_w8(dyn_cp, stream_identifier);
++        avio_wb16(dyn_cp, data_component_id);
++        break;
++    }
+     default:
+         if (par->codec_id == AV_CODEC_ID_PRORES &&
+             ff_codec_get_id(ff_codec_movvideo_tags, par->codec_tag) == AV_CODEC_ID_PRORES) {
+@@ -2805,6 +2827,7 @@ static const AVCodecTag additional_subtitle_tags[] = {
+     { AV_CODEC_ID_DVB_SUBTITLE,      0xFFFFFFFF },
+     { AV_CODEC_ID_DVD_SUBTITLE,      0xFFFFFFFF },
+     { AV_CODEC_ID_HDMV_PGS_SUBTITLE, 0xFFFFFFFF },
++    { AV_CODEC_ID_ARIB_CAPTION,      0xFFFFFFFF },
+     { AV_CODEC_ID_NONE,              0xFFFFFFFF }
+ };
+ 
