@@ -32,6 +32,7 @@ musepack: musepack_src_r$(MUSE_REV).tar.gz .sum-mpcdec
 	$(APPLY) $(SRC)/mpcdec/0004-libmpcdec-added-install-and-soversion.patch
 	$(APPLY) $(SRC)/mpcdec/0005-If-BUILD_SHARED_LIBS-is-set-and-SHARED-undefined-the.patch
 	$(APPLY) $(SRC)/mpcdec/0006-adapted-patch-0001-shared.patch-from-buildroot.patch
+	$(APPLY) $(SRC)/mpcdec/musepack-tools-495_gcc14.patch
 	$(MOVE)
 
 .mpcdec: musepack toolchain.cmake
