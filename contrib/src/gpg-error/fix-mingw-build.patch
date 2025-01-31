@@ -1,0 +1,54 @@
+diff --git a/src/estream.c b/src/estream.c
+index 7fe0847..f78cdf6 100644
+--- a/src/estream.c
++++ b/src/estream.c
+@@ -4519,32 +4519,28 @@ tmpfd (void)
+ # define mystrlen(a) wcslen (a)
+   wchar_t *name, *p;
+ #else
+-  char buffer[MAX_PATH+9+12+1];
+-# define mystrlen(a) strlen (a)
+-  char *name, *p;
++  WCHAR buffer[MAX_PATH+9+12+1];
++# define mystrlen(a) wcslen (a)
++  WCHAR *name, *p;
+ #endif
+   HANDLE file;
+   int pid = GetCurrentProcessId ();
+   unsigned int value;
+   int i;
+ 
+-  n = GetTempPath (MAX_PATH+1, buffer);
++  n = GetTempPathW (MAX_PATH+1, buffer);
+   if (!n || n > MAX_PATH || mystrlen (buffer) > MAX_PATH)
+     {
+       _set_errno (ENOENT);
+       return -1;
+     }
+   p = buffer + mystrlen (buffer);
+-#if defined(HAVE_W32CE_SYSTEM) || defined(UNICODE)
+   wcscpy (p, L"_estream");
+-#else
+-  strcpy (p, "_estream");
+-#endif
+   p += 8;
+   /* We try to create the directory but don't care about an error as
+      it may already exist and the CreateFile would throw an error
+      anyway.  */
+-  CreateDirectory (buffer, NULL);
++  CreateDirectoryW (buffer, NULL);
+   *p++ = '\\';
+   name = p;
+   for (attempts=0; attempts < 10; attempts++)
+@@ -4556,11 +4552,7 @@ tmpfd (void)
+           *p++ = tohex (((value >> 28) & 0x0f));
+           value <<= 4;
+         }
+-#if defined(HAVE_W32CE_SYSTEM) || defined(UNICODE)
+       wcscpy (p, L".tmp");
+-#else
+-      strcpy (p, ".tmp");
+-#endif
+ #if _WIN32_WINNT >= 0x0602 // _WIN32_WINNT_WIN8
+       CREATEFILE2_EXTENDED_PARAMETERS params;
+       memset (&params, 0, sizeof params);

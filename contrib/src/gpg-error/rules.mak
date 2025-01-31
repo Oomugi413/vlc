@@ -36,6 +36,8 @@ endif
 	# don't use GetFileSize on UWP
 	$(APPLY) $(SRC)/gpg-error/gpg-error-uwp-GetFileSize.patch
 
+	$(APPLY) $(SRC)/gpg-error/fix-mingw-build.patch
+
 	$(MOVE)
 ifdef HAVE_ANDROID
 ifeq ($(ARCH),aarch64)
