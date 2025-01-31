@@ -24,6 +24,7 @@ protobuf: protobuf-$(PROTOBUF_VERSION)-cpp.tar.gz .sum-protobuf
 	mv protobuf-$(PROTOBUF_VERSION) protobuf-$(PROTOBUF_VERSION)-cpp
 	$(APPLY) $(SRC)/protobuf/dont-build-protoc.patch
 	$(APPLY) $(SRC)/protobuf/include-algorithm.patch
+	$(APPLY) $(SRC)/protobuf/fix-cord-extension.patch
 	$(MOVE)
 
 .protobuf: protobuf
