@@ -69,6 +69,8 @@ struct subpicture_updater_sys_t
 {
     decoder_sys_t         *p_dec_sys;
     mtime_t                i_pts;
+    unsigned               i_render_area_width;
+    unsigned               i_render_area_height;
     aribcc_render_result_t render_result;
 };
 
@@ -103,14 +105,17 @@ static int SubpictureValidate(subpicture_t *p_subpic,
                               bool b_dst_changed, const video_format_t *p_dst_format,
                               mtime_t i_ts)
 {
-    VLC_UNUSED(p_src_format);
-
     subpicture_updater_sys_t *p_spusys = p_subpic->updater.p_sys;
     decoder_sys_t *p_sys = p_spusys->p_dec_sys;
 
     if (b_src_changed || b_dst_changed) {
         const video_format_t *fmt = p_dst_format;
-        aribcc_renderer_set_frame_size(p_sys->p_renderer, fmt->i_visible_width, fmt->i_visible_height);
+        /* don't let library freely scale using either the min of width or height ratio */
+        p_spusys->i_render_area_width = fmt->i_visible_width;
+        p_spusys->i_render_area_height = p_src_format->i_visible_height * fmt->i_visible_width /
+                                         p_src_format->i_visible_width;
+        aribcc_renderer_set_frame_size(p_sys->p_renderer, p_spusys->i_render_area_width,
+                                                          p_spusys->i_render_area_height);
     }
 
     const mtime_t i_stream_date = p_spusys->i_pts + (i_ts - p_subpic->i_start);
@@ -135,17 +140,18 @@ static int SubpictureValidate(subpicture_t *p_subpic,
 
 static void CopyImageToRegion(subpicture_region_t *p_region, const aribcc_image_t *image)
 {
-    const plane_t *p = &p_region->p_picture->p[0];
-    const int i_height = p_region->fmt.i_height;
-    const uint32_t copy_line_size = __MIN(image->stride, p->i_pitch);
+    if(image->pixel_format != ARIBCC_PIXELFORMAT_RGBA8888)
+        return;
 
-    memset(p->p_pixels, 0, p->i_pitch * p->i_visible_lines);
-
-    for (int y = 0; y < i_height; y++) {
-        const uint8_t *src_line_begin = image->bitmap + y * image->stride;
-        uint8_t *dst_line_begin = p->p_pixels + y * p->i_pitch;
-        memcpy(dst_line_begin, src_line_begin, copy_line_size);
-    }
+    plane_t *p_dstplane = &p_region->p_picture->p[0];
+    plane_t srcplane;
+    srcplane.i_lines = image->height;
+    srcplane.i_pitch = image->stride;
+    srcplane.i_pixel_pitch = p_dstplane->i_pixel_pitch;
+    srcplane.i_visible_lines = image->height;
+    srcplane.i_visible_pitch = image->width /* in pixels */ * p_dstplane->i_pixel_pitch;
+    srcplane.p_pixels = image->bitmap;
+    plane_CopyPixels( p_dstplane, &srcplane );
 }
 
 static void SubpictureUpdate(subpicture_t *p_subpic,
@@ -166,8 +172,8 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
     aribcc_image_t *p_images = p_spusys->render_result.images;
     uint32_t        i_image_count = p_spusys->render_result.image_count;
 
-    p_subpic->i_original_picture_width = fmt.i_visible_width;
-    p_subpic->i_original_picture_height = fmt.i_visible_height;
+    p_subpic->i_original_picture_width = p_spusys->i_render_area_width;
+    p_subpic->i_original_picture_height = p_spusys->i_render_area_height;
 
     if (!p_images || i_image_count == 0) {
         return;
@@ -184,6 +190,8 @@ static void SubpictureUpdate(subpicture_t *p_subpic,
         fmt_region.i_visible_width  = image->width;
         fmt_region.i_height =
         fmt_region.i_visible_height = image->height;
+        fmt_region.i_sar_num = 1;
+        fmt_region.i_sar_den = 1;
 
         subpicture_region_t *region = subpicture_region_New(&fmt_region);
         if (!region)
