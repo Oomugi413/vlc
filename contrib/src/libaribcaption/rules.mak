@@ -55,7 +55,8 @@ endif
 
 
 .libaribcaption: libaribcaption toolchain.cmake
-	cd $< && rm -f CMakeCache.txt
-	cd $< && $(HOSTVARS_PIC) $(CMAKE) $(LIBARIBCC_CONF)
-	cd $< && $(CMAKEBUILD) . --target install
+	$(CMAKECLEAN)
+	$(HOSTVARS) $(CMAKE) $(LIBARIBCC_CONF)
+	+$(CMAKEBUILD)
+	$(CMAKEINSTALL)
 	touch $@
