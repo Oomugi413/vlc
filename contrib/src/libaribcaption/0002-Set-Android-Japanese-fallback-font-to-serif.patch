@@ -1,0 +1,58 @@
+From 69bdceb8e684a6b3524cd501c19ab5c9ab938b55 Mon Sep 17 00:00:00 2001
+From: koron393 <koron393@gmail.com>
+Date: Mon, 19 Aug 2024 14:18:29 +0900
+Subject: [PATCH] renderer/renderer_impl: Set Android Japanese fallback font to
+ serif
+
+* Fix NPE on Android 12
+
+Change-Id: Id0f588afacc022e9c28c3e9c5cdbf7f86ec92b64
+---
+ src/renderer/font_provider_android.cpp | 6 +++---
+ src/renderer/renderer_impl.cpp         | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/renderer/font_provider_android.cpp b/src/renderer/font_provider_android.cpp
+index 89c8dbe..1b5b47c 100644
+--- a/src/renderer/font_provider_android.cpp
++++ b/src/renderer/font_provider_android.cpp
+@@ -59,7 +59,7 @@ auto FontProviderAndroid::GetFontFace(const std::string &font_name,
+     if (iso6392_language_code_ == ThreeCC("jpn") || iso6392_language_code_ == 0) {
+         FontFamily* family = FindFallbackFamilyByLanguageAndFallbackFor("ja", font_name.c_str());
+         if (!family) {
+-            family = FindFallbackFamilyByLanguageAndFallbackFor("ja", "sans-serif");
++            family = FindFallbackFamilyByLanguageAndFallbackFor("ja", "serif");
+         }
+         if (!family) {
+             return Err(FontProviderError::kFontNotFound);
+@@ -186,7 +186,7 @@ bool FontProviderAndroid::CheckFileAndAppendFontFamily(const char* family_name,
+     }
+     if (is_fallback) {
+         family.is_fallback = true;
+-        family.fallback_for = "sans-serif";
++        family.fallback_for = "serif";
+     }
+ 
+     FontFile& font = family.fonts.emplace_back();
+@@ -326,7 +326,7 @@ bool FontProviderAndroid::LMPHandleFamily(XMLElement* element) {
+     if (const char* lang = element->Attribute("lang")) {
+         SplitByComma(lang, current_family.languages);
+         current_family.is_fallback = true;
+-        current_family.fallback_for = "sans-serif";
++        current_family.fallback_for = "serif";
+     }
+ 
+     if (const char* variant = element->Attribute("variant")) {
+diff --git a/src/renderer/renderer_impl.cpp b/src/renderer/renderer_impl.cpp
+index 2940fbb..4ba8379 100644
+--- a/src/renderer/renderer_impl.cpp
++++ b/src/renderer/renderer_impl.cpp
+@@ -59,7 +59,7 @@ void RendererImpl::LoadDefaultFontFamilies() {
+     };
+ #elif defined(__ANDROID__)
+     jpn_default_font_family = {
+-        "sans-serif"
++        "serif"
+     };
+ #else  // Linux, or other platforms
+     jpn_default_font_family = {
