@@ -7,7 +7,7 @@ index 553fa3a..db61565 100644
  #else
  	fd_set rfds;
 -	struct timeval _tv, *tv = NULL;
-+	TIMEVAL timeval _tv, *tv = NULL;
++	TIMEVAL _tv, *tv = NULL;
  
  	FD_ZERO(&rfds);
  	FD_SET(fd, &rfds);
