@@ -32,7 +32,6 @@ FFMPEGCONF = \
 	--disable-doc \
 	--disable-encoder=vorbis \
 	--disable-decoder=opus \
-	--enable-libaribcaption \
 	--enable-libgsm \
 	--disable-debug \
 	--disable-avdevice \
@@ -211,8 +210,6 @@ else # !Windows
 FFMPEGCONF += --enable-pthreads
 endif
 
-DEPS_ffmpeg += libaribcaption
-
 # Solaris
 ifdef HAVE_SOLARIS
 ifeq ($(ARCH),x86_64)
@@ -258,8 +255,7 @@ ifdef USE_FFMPEG
 	$(APPLY) $(SRC)/ffmpeg/0001-dxva2_hevc-don-t-use-frames-as-reference-if-they-are.patch
 	$(APPLY) $(SRC)/ffmpeg/0001-Replace-all-occurences-of-av_mallocz_array-by-av_cal.patch
 	$(APPLY) $(SRC)/ffmpeg/0002-compat-w32dlfcn.h-Remove-MAX_PATH-limit-and-replace-.patch
-	$(APPLY) $(SRC)/ffmpeg/ffmpeg-4.4.4-libaribcaption.patch
-	$(APPLY) $(SRC)/ffmpeg/ffmpeg-4.4.4-libaribcaption-matroska.patch
+	$(APPLY) $(SRC)/ffmpeg/0001-mmttlv-for-4.4.4.patch
 endif
 ifdef USE_LIBAV
 	$(APPLY) $(SRC)/ffmpeg/libav_gsm.patch
