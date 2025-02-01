@@ -26,6 +26,7 @@ endif
 ifdef HAVE_ANDROID
 	$(APPLY) $(SRC)/zvbi/zvbi-android.patch
 endif
+	$(APPLY) $(SRC)/zvbi/zvbi-strncpy.patch
 	$(MOVE)
 
 DEPS_zvbi = png $(DEPS_png) iconv $(DEPS_iconv)
