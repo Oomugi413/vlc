@@ -1,8 +1,8 @@
 diff --git a/src/google/protobuf/unittest.proto b/src/google/protobuf/unittest.proto
-index cc2f4b3..a4aa898 100644
+index f1b0bd0..e5df2e8 100644
 --- a/src/google/protobuf/unittest.proto
 +++ b/src/google/protobuf/unittest.proto
-@@ -246,7 +246,7 @@ extend TestAllExtensions {
+@@ -258,7 +258,7 @@ extend TestAllExtensions {
      optional_import_enum_extension = 23;
  
    optional string optional_string_piece_extension = 24 [ctype=STRING_PIECE];
@@ -11,7 +11,7 @@ index cc2f4b3..a4aa898 100644
  
    optional protobuf_unittest_import.PublicImportMessage
      optional_public_import_message_extension = 26;
-@@ -286,7 +286,7 @@ extend TestAllExtensions {
+@@ -300,7 +300,7 @@ extend TestAllExtensions {
      repeated_import_enum_extension = 53;
  
    repeated string repeated_string_piece_extension = 54 [ctype=STRING_PIECE];
@@ -20,7 +20,7 @@ index cc2f4b3..a4aa898 100644
  
    repeated TestAllTypes.NestedMessage
      repeated_lazy_message_extension = 57 [lazy=true];
-@@ -317,7 +317,7 @@ extend TestAllExtensions {
+@@ -331,7 +331,7 @@ extend TestAllExtensions {
  
    optional string default_string_piece_extension = 84 [ctype=STRING_PIECE,
                                                         default="abc"];
@@ -30,33 +30,33 @@ index cc2f4b3..a4aa898 100644
    // For oneof test
    optional uint32 oneof_uint32_extension = 111;
 diff --git a/src/google/protobuf/unittest_lite.proto b/src/google/protobuf/unittest_lite.proto
-index 878ec7c..7e60f81 100644
+index 010d4a9..3f7c9d2 100644
 --- a/src/google/protobuf/unittest_lite.proto
 +++ b/src/google/protobuf/unittest_lite.proto
-@@ -231,7 +231,7 @@ extend TestAllExtensionsLite {
+@@ -242,7 +242,7 @@ extend TestAllExtensionsLite {
  
    optional string optional_string_piece_extension_lite = 24
-       [ctype=STRING_PIECE];
--  optional string optional_cord_extension_lite = 25 [ctype=CORD];
+       [ctype = STRING_PIECE];
+-  optional string optional_cord_extension_lite = 25 [ctype = CORD];
 +  optional string optional_cord_extension_lite = 25;
  
    optional protobuf_unittest_import.PublicImportMessageLite
-     optional_public_import_message_extension_lite = 26;
-@@ -273,7 +273,7 @@ extend TestAllExtensionsLite {
+       optional_public_import_message_extension_lite = 26;
+@@ -287,7 +287,7 @@ extend TestAllExtensionsLite {
  
    repeated string repeated_string_piece_extension_lite = 54
-       [ctype=STRING_PIECE];
--  repeated string repeated_cord_extension_lite = 55 [ctype=CORD];
+       [ctype = STRING_PIECE];
+-  repeated string repeated_cord_extension_lite = 55 [ctype = CORD];
 +  repeated string repeated_cord_extension_lite = 55;
  
-   repeated TestAllTypesLite.NestedMessage
-     repeated_lazy_message_extension_lite = 57 [lazy=true];
-@@ -304,7 +304,7 @@ extend TestAllExtensionsLite {
- 
-   optional string default_string_piece_extension_lite = 84 [ctype=STRING_PIECE,
-                                                             default="abc"];
--  optional string default_cord_extension_lite = 85 [ctype=CORD, default="123"];
-+  optional string default_cord_extension_lite = 85 [default="123"];
+   repeated TestAllTypesLite.NestedMessage repeated_lazy_message_extension_lite =
+       57 [lazy = true];
+@@ -319,7 +319,7 @@ extend TestAllExtensionsLite {
+   optional string default_string_piece_extension_lite = 84
+       [ctype = STRING_PIECE, default = "abc"];
+   optional string default_cord_extension_lite = 85
+-      [ctype = CORD, default = "123"];
++      [default = "123"];
  
    // For oneof test
    optional uint32 oneof_uint32_extension_lite = 111;
