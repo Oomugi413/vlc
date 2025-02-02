@@ -3801,7 +3801,7 @@ dnl  Chromecast streaming support
 dnl
 m4_pushdef([protobuf_lite_version], 2.5.0)
 AC_ARG_VAR(PROTOC, [protobuf compiler])
-AC_CHECK_PROGS(PROTOC, protoc, no)
+AC_PATH_PROGS(PROTOC, [protoc], no, ["${CONTRIB_DIR}/../bin:$PATCH"])
 PKG_WITH_MODULES([CHROMECAST],[protobuf-lite >= protobuf_lite_version], [
     AS_IF([test "x${PROTOC}" != "xno"], [
         build_chromecast="yes"
