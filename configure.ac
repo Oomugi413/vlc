@@ -1280,6 +1280,7 @@ AS_IF([test "${SYS}" = "mingw32"], [
     AS_IF([test "${win32_path_cmd}" != "no"],[
       WIN32_PATH_CMD=${win32_path_cmd}
       AC_MSG_RESULT([using '${win32_path_cmd}'])
+      LDFLAGS="${LDFLAGS} -lsynchronization"
     ],[
       AC_MSG_RESULT([not possible])
     ])
