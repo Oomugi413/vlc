@@ -38,6 +38,8 @@ gnutls: gnutls-$(GNUTLS_VERSION).tar.xz .sum-gnutls
 	# use CreateFile2 in Win8 as CreateFileW is forbidden in UWP
 	$(APPLY) $(SRC)/gnutls/0001-Use-CreateFile2-in-UWP-builds.patch
 
+	$(APPLY) $(SRC)/gnutls/0002-fix-mingw-build-on-fedora.patch
+
 	$(MOVE)
 
 GNUTLS_CONF := \
