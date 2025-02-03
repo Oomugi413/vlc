@@ -1,0 +1,12 @@
+diff --git a/include/medialibrary/ISubtitleTrack.h b/include/medialibrary/ISubtitleTrack.h
+index 8e879c7..bea30a5 100644
+--- a/include/medialibrary/ISubtitleTrack.h
++++ b/include/medialibrary/ISubtitleTrack.h
+@@ -23,6 +23,7 @@
+ #pragma once
+ 
+ #include <string>
++#include <cstdint>
+ 
+ namespace medialibrary
+ {

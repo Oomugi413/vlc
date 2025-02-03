@@ -15,6 +15,7 @@ $(TARBALLS)/medialibrary-$(MEDIALIBRARY_VERSION).tar.bz2:
 
 medialibrary: medialibrary-$(MEDIALIBRARY_VERSION).tar.bz2 .sum-medialibrary
 	$(UNPACK)
+	$(APPLY) $(SRC)/medialibrary/0001-add-missing-cstdint-include.patch
 	$(MOVE)
 
 .medialibrary: medialibrary crossfile.meson
