@@ -40,6 +40,7 @@ ifdef HAVE_CROSS_COMPILE
 	    sed -i.orig -e 's,^bin_PROGRAMS = ,bin_PROGRAMS_disabled = ,g' $(UNPACK_DIR)/$$subdir/Makefile.in && \
 	    sed -i.orig -e 's,^noinst_PROGRAMS = ,noinst_PROGRAMS_disabled = ,g' $(UNPACK_DIR)/$$subdir/Makefile.in; done
 endif
+	$(APPLY) $(SRC)/gettext/0001-fix-mingw-build.patch
 	$(MOVE)
 
 DEPS_gettext = iconv $(DEPS_iconv) libxml2 $(DEPS_libxml2)
