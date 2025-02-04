@@ -181,6 +181,38 @@ CFLAGS := $(CFLAGS) $(EXTRA_CFLAGS)
 CXXFLAGS := $(CXXFLAGS) $(EXTRA_CFLAGS) $(EXTRA_CXXFLAGS)
 LDFLAGS := $(LDFLAGS) -L$(PREFIX)/lib $(EXTRA_LDFLAGS)
 
+ifeq ($(shell gcc --version >/dev/null 2>&1 || echo No GCC),)
+BUILDCC ?= gcc
+BUILDCXX ?= g++
+ifeq ($(shell gcc-ar --version >/dev/null 2>&1 || echo Prehistoric GCC),)
+BUILDAR ?= gcc-ar
+BUILDNM ?= gcc-nm
+BUILDRANLIB ?= gcc-ranlib
+endif
+else ifeq ($(shell clang --version >/dev/null 2>&1 || No LLVM/Clang),)
+BUILDCC ?= clang
+BUILDCXX ?= clang++
+ifeq ($(shell llvm-ar --version >/dev/null 2>&1 || echo Prehistoric LLVM),)
+BUILDAR ?= llvm-ar
+BUILDNM ?= llvm-nm
+BUILDRANLIB ?= llvm-ranlib
+BUILDSTRIP ?= llvm-strip
+endif
+endif
+
+BUILDCC ?= cc
+BUILDCXX ?= c++
+BUILDLD ?= $(BUILDCC)
+BUILDAR ?= ar
+BUILDNM ?= nm
+BUILDRANLIB ?= ranlib
+BUILDSTRIP ?= strip
+
+BUILDCPPFLAGS ?=
+BUILDCFLAGS ?= -O2
+BUILDCXXFLAGS ?= $(BUILDCFLAGS)
+BUILDLDFLAGS ?= $(BUILDCFLAGS)
+
 # Do not export those! Use HOSTVARS.
 
 # Do the FPU detection, after we have figured out our compilers and flags.

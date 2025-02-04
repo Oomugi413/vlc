@@ -1,6 +1,6 @@
 FXC2_HASH := 63ad74b7faa7033f2c1be9cc1cd0225241a1a9a5
 FXC2_VERSION := git-$(FXC2_HASH)
-FXC2_GITURL := https://github.com/mozilla/fxc2.git
+FXC2_GITURL := $(GITHUB)/mozilla/fxc2.git
 
 ifeq ($(call need_pkg,"fxc2"),)
 PKGS_FOUND += fxc2
@@ -14,9 +14,7 @@ $(TARBALLS)/fxc2-$(FXC2_VERSION).tar.xz:
 	touch $@
 
 fxc2: fxc2-$(FXC2_VERSION).tar.xz .sum-fxc2
-	rm -rf $@-$(FXC2_VERSION) $@
-	mkdir -p $@-$(FXC2_VERSION)
-	tar xvf "$<" --strip-components=1 -C $@-$(FXC2_VERSION)
+	$(UNPACK)
 	$(APPLY) $(SRC)/fxc2/0001-make-Vn-argument-as-optional-and-provide-default-var.patch
 	$(APPLY) $(SRC)/fxc2/0002-accept-windows-style-flags-and-splitted-argument-val.patch
 	$(APPLY) $(SRC)/fxc2/0004-Revert-Fix-narrowing-conversion-from-int-to-BYTE.patch
@@ -28,10 +26,10 @@ FXC2_DLL=dll/d3dcompiler_47.dll
 else ifeq ($(ARCH),i386)
 FXC2_CXX=$(CXX)
 FXC2_DLL=dll/d3dcompiler_47_32.dll
-else ifeq ($(shell which x86_64-w64-mingw32-g++ >/dev/null 2>&1 || echo FAIL),)
+else ifeq ($(shell command -v x86_64-w64-mingw32-g++ >/dev/null 2>&1 || echo FAIL),)
 FXC2_CXX=x86_64-w64-mingw32-g++
 FXC2_DLL=dll/d3dcompiler_47.dll
-else ifeq ($(shell which i686-w64-mingw32-g++ >/dev/null 2>&1 || echo FAIL),)
+else ifeq ($(shell command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || echo FAIL),)
 FXC2_CXX=i686-w64-mingw32-g++
 FXC2_DLL=dll/d3dcompiler_47_32.dll
 else

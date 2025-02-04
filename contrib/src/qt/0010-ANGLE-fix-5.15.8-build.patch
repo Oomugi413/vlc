@@ -1,0 +1,73 @@
+diff --git a/src/3rdparty/angle/include/GLSLANG/ShaderVars.h b/src/3rdparty/angle/include/GLSLANG/ShaderVars.h
+index 709428ae..cd1de0aa 100644
+--- a/src/3rdparty/angle/include/GLSLANG/ShaderVars.h
++++ b/src/3rdparty/angle/include/GLSLANG/ShaderVars.h
+@@ -14,6 +14,7 @@
+ #include <array>
+ #include <string>
+ #include <vector>
++#include <cstdint>
+ 
+ // This type is defined here to simplify ANGLE's integration with glslang for SPIRv.
+ using ShCompileOptions = uint64_t;
+diff --git a/src/3rdparty/angle/src/libANGLE/Context.cpp b/src/3rdparty/angle/src/libANGLE/Context.cpp
+index f638beda..9c2ccc73 100644
+--- a/src/3rdparty/angle/src/libANGLE/Context.cpp
++++ b/src/3rdparty/angle/src/libANGLE/Context.cpp
+@@ -451,7 +451,7 @@ egl::Error Context::onDestroy(const egl::Display *display)
+ 
+     for (auto &zeroTexture : mZeroTextures)
+     {
+-        ANGLE_TRY(zeroTexture.second->onDestroy(this));
++        ANGLE_SWALLOW_ERR(zeroTexture.second->onDestroy(this));
+         zeroTexture.second.set(this, nullptr);
+     }
+     mZeroTextures.clear();
+diff --git a/src/3rdparty/angle/src/libANGLE/Stream.cpp b/src/3rdparty/angle/src/libANGLE/Stream.cpp
+index 68279976..649eb8ad 100644
+--- a/src/3rdparty/angle/src/libANGLE/Stream.cpp
++++ b/src/3rdparty/angle/src/libANGLE/Stream.cpp
+@@ -192,7 +192,7 @@ Error Stream::consumerAcquire(const gl::Context *context)
+     {
+         if (mPlanes[i].texture != nullptr)
+         {
+-            ANGLE_TRY(mPlanes[i].texture->acquireImageFromStream(
++            ANGLE_SWALLOW_ERR(mPlanes[i].texture->acquireImageFromStream(
+                 context, mProducerImplementation->getGLFrameDescription(i)));
+         }
+     }
+@@ -213,7 +213,7 @@ Error Stream::consumerRelease(const gl::Context *context)
+     {
+         if (mPlanes[i].texture != nullptr)
+         {
+-            ANGLE_TRY(mPlanes[i].texture->releaseImageFromStream(context));
++            ANGLE_SWALLOW_ERR(mPlanes[i].texture->releaseImageFromStream(context));
+         }
+     }
+ 
+diff --git a/src/3rdparty/angle/src/libANGLE/Texture.cpp b/src/3rdparty/angle/src/libANGLE/Texture.cpp
+index da92e659..eabd1245 100644
+--- a/src/3rdparty/angle/src/libANGLE/Texture.cpp
++++ b/src/3rdparty/angle/src/libANGLE/Texture.cpp
+@@ -550,7 +550,7 @@ Error Texture::onDestroy(const Context *context)
+ {
+     if (mBoundSurface)
+     {
+-        ANGLE_TRY(mBoundSurface->releaseTexImage(context, EGL_BACK_BUFFER));
++        ANGLE_SWALLOW_ERR(mBoundSurface->releaseTexImage(context, EGL_BACK_BUFFER));
+         mBoundSurface = nullptr;
+     }
+     if (mBoundStream)
+diff --git a/src/3rdparty/angle/src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp b/src/3rdparty/angle/src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp
+index 75c62988..e8f0060a 100644
+--- a/src/3rdparty/angle/src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp
++++ b/src/3rdparty/angle/src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp
+@@ -376,7 +376,7 @@ egl::Error Renderer9::initializeDevice()
+ 
+     ASSERT(!mBlit);
+     mBlit = new Blit9(this);
+-    ANGLE_TRY(mBlit->initialize());
++    ANGLE_SWALLOW_ERR(mBlit->initialize());
+ 
+     ASSERT(!mVertexDataManager && !mIndexDataManager);
+     mVertexDataManager = new VertexDataManager(this);

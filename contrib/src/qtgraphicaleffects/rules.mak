@@ -1,8 +1,8 @@
 # QtGraphicalEffects
 
-QTGE_VERSION_MAJOR := 5.12
-QTGE_VERSION := $(QTGE_VERSION_MAJOR).7
-QTGE_URL := http://download.qt.io/official_releases/qt/$(QTGE_VERSION_MAJOR)/$(QTGE_VERSION)/submodules/qtgraphicaleffects-everywhere-src-$(QTGE_VERSION).tar.xz
+QTGE_VERSION_MAJOR := 5.15
+QTGE_VERSION := $(QTGE_VERSION_MAJOR).8
+QTGE_URL := $(QT)/$(QTGE_VERSION_MAJOR)/$(QTGE_VERSION)/submodules/qtgraphicaleffects-everywhere-opensource-src-$(QTGE_VERSION).tar.xz
 
 DEPS_qtgraphicaleffects += qtdeclarative $(DEPS_qtdeclarative)
 
@@ -24,10 +24,8 @@ qtgraphicaleffects: qtgraphicaleffects-everywhere-src-$(QTGE_VERSION).tar.xz .su
 	$(MOVE)
 
 .qtgraphicaleffects: qtgraphicaleffects
-	cd $< && $(PREFIX)/bin/qmake
-	# Make && Install libraries
-	cd $< && $(MAKE)
-	cd $< && $(MAKE) -C src sub-effects-install_subtargets
-	$(SRC)/qt/AddStaticLink.sh "$(PREFIX)" Qt5QuickWidgets qml/QtGraphicalEffects qtgraphicaleffectsplugin
-	$(SRC)/qt/AddStaticLink.sh "$(PREFIX)" Qt5QuickWidgets qml/QtGraphicalEffects/private qtgraphicaleffectsprivate
+	$(call qmake_toolchain, $<)
+	cd $< && $(PREFIX)/lib/qt5/bin/qmake
+	$(MAKE) -C $<
+	$(MAKE) -C $< install
 	touch $@
