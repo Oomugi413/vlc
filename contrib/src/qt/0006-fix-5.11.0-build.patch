@@ -1,0 +1,25 @@
+diff --git a/src/corelib/global/qrandom.cpp b/src/corelib/global/qrandom.cpp
+index ebf9864b..577736a8 100644
+--- a/src/corelib/global/qrandom.cpp
++++ b/src/corelib/global/qrandom.cpp
+@@ -218,6 +218,7 @@ struct QRandomGenerator::SystemGenerator
+ #endif // Q_OS_WINRT
+ 
+     static SystemGenerator &self();
++    typedef quint32 result_type;
+     void generate(quint32 *begin, quint32 *end) Q_DECL_NOEXCEPT_EXPR(FillBufferNoexcept);
+ 
+     // For std::mersenne_twister_engine implementations that use something
+diff --git a/src/corelib/tools/qbytearraymatcher.h b/src/corelib/tools/qbytearraymatcher.h
+index dafaea9c..b1793525 100644
+--- a/src/corelib/tools/qbytearraymatcher.h
++++ b/src/corelib/tools/qbytearraymatcher.h
+@@ -40,6 +40,8 @@
+ #ifndef QBYTEARRAYMATCHER_H
+ #define QBYTEARRAYMATCHER_H
+ 
++#include <limits>
++
+ #include <QtCore/qbytearray.h>
+ 
+ QT_BEGIN_NAMESPACE

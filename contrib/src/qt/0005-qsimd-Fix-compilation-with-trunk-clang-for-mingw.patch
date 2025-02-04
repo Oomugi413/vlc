@@ -1,7 +1,7 @@
-From 4d7a9efed1a3e65b1ec0232140a707fdf2458493 Mon Sep 17 00:00:00 2001
+From e94d33db32d43c4c99318fc6a5213f629c1c0087 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Martin=20Storsj=C3=B6?= <martin@martin.st>
 Date: Fri, 18 Jan 2019 09:31:10 +0200
-Subject: [PATCH 13/13] qsimd: Fix compilation with trunk clang for mingw
+Subject: [PATCH 5/5] qsimd: Fix compilation with trunk clang for mingw
 
 Current tip-of-tree clang (after Clang 8 was branched) added an
 intrinsic function __builtin_ia32_xgetbv, and added the following
@@ -17,16 +17,16 @@ Q_CC_EMSCRIPTEN are mutually exclusive.
 
 Change-Id: I257fc4283ff9f0845df51ab764cf58acdf285c66
 Reviewed-by: Thiago Macieira <thiago.macieira@intel.com>
-Backport-Of: 9818af7d436f7aa1bf5c635041cc5d08fec599b5 (v5.12.2)
+Cherry-picked-from: 9818af7d436f7aa1bf5c635041cc5d08fec599b5
 ---
  src/corelib/tools/qsimd.cpp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/corelib/tools/qsimd.cpp b/src/corelib/tools/qsimd.cpp
-index 334e37b674..4316496ae2 100644
+index 25340f2d02..4ae310b164 100644
 --- a/src/corelib/tools/qsimd.cpp
 +++ b/src/corelib/tools/qsimd.cpp
-@@ -226,7 +226,7 @@ static void cpuidFeatures07_00(uint &ebx, uint &ecx)
+@@ -248,7 +248,7 @@ static void cpuidFeatures07_00(uint &ebx, uint &ecx)
  #endif
  }
  
@@ -36,5 +36,5 @@ index 334e37b674..4316496ae2 100644
  inline quint64 _xgetbv(__int64) { return 0; }
  #endif
 -- 
-2.21.1 (Apple Git-122.3)
+2.17.2 (Apple Git-113)
 
