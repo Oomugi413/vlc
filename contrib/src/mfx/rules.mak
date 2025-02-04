@@ -32,6 +32,7 @@ mfx: mfx-$(MFX_GITHASH).tar.xz .sum-mfx
 	$(APPLY) $(SRC)/mfx/0001-detect-winstore-builds-with-a-regular-mingw32-toolch.patch
 	$(APPLY) $(SRC)/mfx/0002-Fix-linking-statically-with-intel_gfx_api-x86.dll.patch
 	$(APPLY) $(SRC)/mfx/0003-Don-t-change-the-calling-convention-of-x86-gfx-api.patch
+	$(APPLY) $(SRC)/mfx/0004-fix-lib.patch
 	cd $(UNPACK_DIR) && autoreconf -ivf
 	$(MOVE)
 
