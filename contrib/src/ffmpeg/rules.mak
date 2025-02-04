@@ -181,7 +181,7 @@ endif
 # Windows
 ifdef HAVE_WIN32
 ifndef HAVE_VISUALSTUDIO
-DEPS_ffmpeg += d3d11
+DEPS_ffmpeg += wine-headers
 endif
 FFMPEGCONF += --target-os=mingw32
 FFMPEGCONF += --disable-w32threads --enable-pthreads --extra-libs="-lpthread"
