@@ -71,9 +71,9 @@ DWriteGenericMapping[] =
     { "cursive",   "comic sans ms" },
     { "fantasy",   "impact" },
     { "monospace", "courier new" },
-    { "sans",      "arial" },
-    { "sans-serif","arial" },
-    { "serif",     "times new roman" },
+    { "sans",      "meiryo ui" },
+    { "sans-serif","meiryo ui" },
+    { "serif",     "yu mincho" },
     { "system-ui", "meiryo ui" },
 };
 
