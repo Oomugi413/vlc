@@ -7,7 +7,7 @@ win32_destdir=@PACKAGE_DIR@
 win32_debugdir=$(abs_top_builddir)/symbols-$(VERSION)
 win32_xpi_destdir=$(abs_top_builddir)/vlc-plugin-$(VERSION)
 
-7Z_OPTS=-t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on
+7Z_OPTS=-t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on -mmt=on
 
 
 if HAVE_WIN32
