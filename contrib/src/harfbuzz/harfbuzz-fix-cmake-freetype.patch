@@ -1,0 +1,13 @@
+diff --git a/meson.build b/meson.build
+index 8db02ed..8c9eb17 100644
+--- a/meson.build
++++ b/meson.build
+@@ -101,7 +101,7 @@ if not get_option('freetype').disabled()
+ 
+   if not freetype_dep.found()
+     # https://github.com/harfbuzz/harfbuzz/pull/2498
+-    freetype_dep = dependency('freetype2', required: get_option('freetype'),
++    freetype_dep = dependency('freetype', required: get_option('freetype'),
+                               default_options: ['harfbuzz=disabled'])
+   endif
+ endif

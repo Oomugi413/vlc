@@ -1,0 +1,22 @@
+diff --git a/lib/cddb_net.c b/lib/cddb_net.c
+index 2879225..e3e46e4 100644
+--- a/lib/cddb_net.c
++++ b/lib/cddb_net.c
+@@ -265,7 +265,7 @@ int timeout_connect(int sockfd, const struct sockaddr *addr,
+     if (connect(sockfd, addr, len) == -1) {
+         /* check whether we can continue */
+         if (errno == EINPROGRESS) {
+-            int rv;
++            char rv;
+             fd_set wfds;
+             struct timeval tv;
+             size_t l;
+@@ -288,7 +288,7 @@ int timeout_connect(int sockfd, const struct sockaddr *addr,
+             default:
+                 /* we got connected, check error condition */
+                 l = sizeof(rv);
+-                getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &rv, &l);
++                getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &rv, (socklen_t * restrict)&l);
+                 if (rv) {
+                     /* something went wrong, simulate normal connect behaviour */
+                     errno = rv;

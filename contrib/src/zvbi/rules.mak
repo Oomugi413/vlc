@@ -28,6 +28,7 @@ endif
 ifdef HAVE_ANDROID
 	$(APPLY) $(SRC)/zvbi/zvbi-android.patch
 endif
+	$(APPLY) $(SRC)/zvbi/zvbi-strncpy.patch
 	# hardcode -liconv instead of the full path
 	$(APPLY) $(SRC)/zvbi/0001-configure-hardcode-liconv-instead-of-the-full-path.patch
 	# check for pthread_create in pthreads as well
