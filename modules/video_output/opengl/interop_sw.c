@@ -792,7 +792,6 @@ opengl_interop_generic_init(struct vlc_gl_interop *interop, bool allow_dr)
         || vlc_gl_HasExtension(&extension_vt, "GL_EXT_texture_integer"));
 
     video_color_space_t space;
-    const vlc_fourcc_t *list;
     const bool is_yup = vlc_fourcc_IsYUV(interop->fmt_in.i_chroma);
 
     if (is_yup)
@@ -802,19 +801,10 @@ opengl_interop_generic_init(struct vlc_gl_interop *interop, bool allow_dr)
         if (max_texture_units < 3)
             goto error;
 
-        list = vlc_fourcc_GetYUVFallback(interop->fmt_in.i_chroma);
         space = interop->fmt_in.space;
     }
-    else if (interop->fmt_in.i_chroma == VLC_CODEC_XYZ_12B)
-    {
-        list = NULL;
-        space = COLOR_SPACE_UNDEF;
-    }
     else
-    {
-        list = vlc_fourcc_GetRGBFallback(interop->fmt_in.i_chroma);
         space = COLOR_SPACE_UNDEF;
-    }
 
     /* The pictures are uploaded upside-down */
     video_format_TransformBy(&interop->fmt_out, TRANSFORM_VFLIP);
@@ -833,24 +823,30 @@ opengl_interop_generic_init(struct vlc_gl_interop *interop, bool allow_dr)
             goto interop_init;
     }
 
+    vlc_fourcc_t *list = NULL;
+    if (is_yup)
+        list = vlc_fourcc_GetYUVFallback(interop->fmt_in.i_chroma);
+    else if (interop->fmt_in.i_chroma != VLC_CODEC_XYZ_12B)
+        list = vlc_fourcc_GetRGBFallback(interop->fmt_in.i_chroma);
+
     if (list == NULL)
         goto error;
 
     /* Check whether any fallback for the chroma is translatable to OpenGL. */
-    while (*list)
+    for (const vlc_fourcc_t *fcc = list; *fcc; fcc++)
     {
-        ret = opengl_interop_init(interop, *list, space);
+        ret = opengl_interop_init(interop, *fcc, space);
         if (ret == VLC_SUCCESS)
         {
-            i_chroma = *list;
+            i_chroma = *fcc;
             msg_Warn(interop->gl, "direct rendering failed for %4.4s, "
                      "fallback to %4.4s",
                      (const char *)&interop->fmt_in.i_chroma,
                      (const char *)&i_chroma);
             goto interop_init;
         }
-        list++;
     }
+    free(list);
 
     goto error;
 

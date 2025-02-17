@@ -115,7 +115,7 @@ void CompositorPlatform::unloadGUI()
 {
     m_rootWindow->removeEventFilter(this);
     m_interfaceWindowHandler.reset();
-    delete m_quickWindow;
+    m_quickWindow->setSource(QUrl());
     commonGUIDestroy();
 }
 
@@ -194,10 +194,12 @@ void CompositorPlatform::windowDisable()
 
 void CompositorPlatform::onSurfacePositionChanged(const QPointF &position)
 {
-    m_videoWindow->setPosition((position / m_videoWindow->devicePixelRatio()).toPoint());
+    const QPointF point = position / m_videoWindow->devicePixelRatio();
+    m_videoWindow->setPosition({static_cast<int>(point.x()), static_cast<int>(point.y())});
 }
 
 void CompositorPlatform::onSurfaceSizeChanged(const QSizeF &size)
 {
-    m_videoWindow->resize((size / m_videoWindow->devicePixelRatio()).toSize());
+    const QSizeF area = (size / m_videoWindow->devicePixelRatio());
+    m_videoWindow->resize({static_cast<int>(std::ceil(area.width())), static_cast<int>(std::ceil(area.height()))});
 }

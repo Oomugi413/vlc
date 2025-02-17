@@ -1,8 +1,9 @@
 /*****************************************************************************
- * VLCWrappableTextField.m
+ * VLCFileDragRecognisingView.h
  *****************************************************************************
- * Copyright (C) 2017 VideoLAN and authors
- * Author:       David Fuhrmann <dfuhrmann at videolan dot org>
+ * Copyright (C) 2025 VLC authors and VideoLAN
+ *
+ * Authors: Claudio Cambra <developer@claudiocambra.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,31 +20,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
  *****************************************************************************/
 
-#import "VLCWrappableTextField.h"
+#import <Cocoa/Cocoa.h>
 
+NS_ASSUME_NONNULL_BEGIN
 
-@implementation VLCWrappableTextField
+@protocol VLCDragDropTarget
 
-- (NSSize)intrinsicContentSize
-{
-    if (![self.cell wraps]) {
-        return [super intrinsicContentSize];
-    }
-
-    // Try to get minimum height needed, by assuming unlimited height being
-    // (theoretically) possible.
-    NSRect frame = [self frame];
-    frame.size.height = CGFLOAT_MAX;
-
-    CGFloat height = [self.cell cellSizeForBounds:frame].height;
-
-    return NSMakeSize(frame.size.width, height);
-}
-
-- (void)textDidChange:(NSNotification *)notification
-{
-    [super textDidChange:notification];
-    [self invalidateIntrinsicContentSize];
-}
+@required
+- (BOOL)handlePasteBoardFromDragSession:(NSPasteboard *)pasteboard;
 
 @end
+
+@interface VLCFileDragRecognisingView : NSView
+
+@property (nonatomic, assign) id<VLCDragDropTarget> dropTarget;
+
++ (BOOL)handlePasteboardFromDragSessionAsPlayQueueItems:(NSPasteboard *)pasteboard;
+- (void)setupDragRecognition;
+
+@end
+
+NS_ASSUME_NONNULL_END

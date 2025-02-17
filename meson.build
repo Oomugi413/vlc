@@ -244,7 +244,7 @@ check_c_headers = [
     ['stdckdint.h'],
     ['arpa/inet.h'],
     ['threads.h'],
-    ['netinet/tcp.h'],
+    ['netinet/tcp.h', { 'prefix' : ['#include <sys/types.h>'] }],
     ['search.h'],
     ['sys/uio.h'],
     ['sys/socket.h'],
@@ -259,7 +259,7 @@ check_c_headers = [
     ['poll.h'],
     ['sys/auxv.h'],
     ['sys/eventfd.h'],
-    ['sys/mount.h'],
+    ['sys/mount.h', { 'prefix' : ['#include <sys/types.h>'] }],
     ['sys/shm.h'],
     ['sys/soundcard.h'],
     ['valgrind/valgrind.h'],
@@ -509,11 +509,13 @@ if get_option('extra_checks')
         '-Werror=restrict',
         '-Werror=int-conversion',
         '-Werror=implicit-int',
-        '-Werror=declaration-missing-parameter-type'
+        '-Werror=declaration-missing-parameter-type',
+        '-Werror=excess-initializers',
     ]), language: ['c'])
     add_project_arguments(cpp.get_supported_arguments([
         '-Werror=missing-field-initializers',
         '-Werror=format',
+        '-Werror=excess-initializers',
     ]), language: ['cpp'])
 endif
 

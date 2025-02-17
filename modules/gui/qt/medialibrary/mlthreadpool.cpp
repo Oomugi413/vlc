@@ -20,52 +20,32 @@
 
 #include <QMutexLocker>
 
-MLThreadPoolSerialTask::MLThreadPoolSerialTask(MLThreadPool* parent, const QString& queueName)
-    : m_parent(parent)
-    , m_queueName(queueName)
+ThreadRunner::ThreadRunner()
 {
-    assert(m_parent);
+    m_threadPool.setMaxThreadCount(4);
+}
+
+ThreadRunner::~ThreadRunner()
+{
+    assert(m_objectTasks.empty());
+    assert(m_runningTasks.empty());
+}
+
+void ThreadRunner::setMaxThreadCount(size_t threadCount)
+{
+    m_threadPool.setMaxThreadCount(threadCount);
 }
 
 
-void MLThreadPoolSerialTask::run()
-{
-    QRunnable* task = m_parent->getNextTaskFromQueue(m_queueName);
-    if (!task)
-    {
-        deleteLater();
-        return;
-    }
-    task->run();
-    if (task->autoDelete())
-        delete task;
-    m_parent->start(this, nullptr);
-}
-
-MLThreadPool::MLThreadPool()
-{
-}
-
-
-MLThreadPool::~MLThreadPool()
-{
-}
-
-
-void MLThreadPool::setMaxThreadCount(size_t poolsize)
-{
-    m_threadpool.setMaxThreadCount(poolsize);
-}
-
-void MLThreadPool::start(QRunnable* task, const char* queue)
+void ThreadRunner::start(QRunnable* task, const char* queue)
 {
     if (queue == nullptr)
     {
-        m_threadpool.start(task);
+        m_threadPool.start(task);
     }
     else
     {
-        QMutexLocker lock(&m_lock);
+        QMutexLocker lock(&m_serialTaskLock);
         if (m_serialTasks.contains(queue))
         {
             m_serialTasks[queue].push_back(task);
@@ -74,21 +54,19 @@ void MLThreadPool::start(QRunnable* task, const char* queue)
         {
             m_serialTasks[queue] = QQueue<QRunnable*>();
             m_serialTasks[queue].push_back(task);
-            auto serialTasks = new MLThreadPoolSerialTask(this, queue);
-            serialTasks->setAutoDelete(false);
-            m_threadpool.start(serialTasks);
+            processQueueLocked(queue);
         }
     }
 }
 
-bool MLThreadPool::tryTake(QRunnable* task)
+bool ThreadRunner::tryTake(QRunnable* task)
 {
-    bool ret = m_threadpool.tryTake(task);
+    bool ret = m_threadPool.tryTake(task);
     if (ret)
         return true;
 
     {
-        QMutexLocker lock(&m_lock);
+        QMutexLocker lock(&m_serialTaskLock);
         for (auto queueIt = m_serialTasks.begin(); queueIt != m_serialTasks.end(); ++queueIt)
         {
             auto& queue = queueIt.value();
@@ -106,9 +84,9 @@ bool MLThreadPool::tryTake(QRunnable* task)
 }
 
 
-QRunnable* MLThreadPool::getNextTaskFromQueue(const QString& queueName)
+QRunnable* ThreadRunner::getNextTaskFromQueue(const QString& queueName)
 {
-    QMutexLocker lock(&m_lock);
+    QMutexLocker lock(&m_serialTaskLock);
     auto& queue = m_serialTasks[queueName];
     if (queue.empty())
     {
@@ -120,19 +98,38 @@ QRunnable* MLThreadPool::getNextTaskFromQueue(const QString& queueName)
     return task;
 }
 
-ThreadRunner::ThreadRunner()
+void ThreadRunner::processQueueLocked(const QString& queueName)
 {
-    m_threadPool.setMaxThreadCount(4);
-}
+    if (!m_serialTasks.contains(queueName))
+        return;
 
-ThreadRunner::~ThreadRunner()
-{
-    assert(m_objectTasks.empty());
-    assert(m_runningTasks.empty());
+    auto taskId = m_taskId++;
+    struct Ctx{};
+    auto runnable = new RunOnThreadRunner<Ctx>(taskId, this,
+        [this, queueName](Ctx&){
+            QRunnable* task = getNextTaskFromQueue(queueName);
+            if (!task)
+            {
+                return;
+            }
+            task->run();
+            if (task->autoDelete())
+                delete task;
+        },
+        [this, queueName](quint64, const Ctx&){
+             QMutexLocker lock(&m_serialTaskLock);
+             processQueueLocked(queueName);
+        });
+    connect(runnable, &RunOnThreadBaseRunner::done, this, &ThreadRunner::runOnThreadDone);
+    m_runningTasks.insert(taskId, runnable);
+    m_objectTasks.insert(this, taskId);
+
+    m_threadPool.start(runnable);
 }
 
 void ThreadRunner::destroy()
 {
+    QMutexLocker locker{&m_lock};
     m_shuttingDown = true;
     //try to cancel as many tasks as possible
     for (auto taskIt = m_objectTasks.begin(); taskIt != m_objectTasks.end(); /**/)
@@ -140,7 +137,7 @@ void ThreadRunner::destroy()
         const QObject* object = taskIt.key();
         quint64 key = taskIt.value();
         auto task = m_runningTasks.value(key, nullptr);
-        if (m_threadPool.tryTake(task))
+        if (tryTake(task))
         {
             delete task;
             m_runningTasks.remove(key);
@@ -161,12 +158,13 @@ void ThreadRunner::destroy()
 void ThreadRunner::cancelTask(const QObject* object, quint64 taskId)
 {
     assert(taskId != 0);
+    QMutexLocker locker{&m_lock};
 
     auto task = m_runningTasks.value(taskId, nullptr);
     if (!task)
         return;
     task->cancel();
-    bool removed = m_threadPool.tryTake(task);
+    bool removed = tryTake(task);
     if (removed)
         delete task;
     m_runningTasks.remove(taskId);
@@ -177,39 +175,58 @@ void ThreadRunner::cancelTask(const QObject* object, quint64 taskId)
 
 void ThreadRunner::runOnThreadDone(RunOnThreadBaseRunner* runner, quint64 target, const QObject* object, int status)
 {
+    QMutexLocker locker{&m_lock};
+    if (!m_runningTasks.contains(target))
+    {
+        runner->deleteLater();
+        return;
+    }
+
+    m_runningTasks.remove(target);
+    m_objectTasks.remove(object, target);
+    if (m_objectTasks.count(object) == 0)
+        disconnect(object, &QObject::destroyed, this, &ThreadRunner::runOnThreadTargetDestroyed);
+
     if (m_shuttingDown)
     {
-        if (m_runningTasks.contains(target))
-        {
-            m_runningTasks.remove(target);
-            m_objectTasks.remove(object, target);
-            if (m_objectTasks.count(object) == 0)
-                disconnect(object, &QObject::destroyed, this, &ThreadRunner::runOnThreadTargetDestroyed);
-        }
         if (m_runningTasks.empty())
             deleteLater();
+        runner->deleteLater();
+        return;
     }
-    else if (m_runningTasks.contains(target))
+
+    if (status == ML_TASK_STATUS_SUCCEED)
     {
-        if (status == ML_TASK_STATUS_SUCCEED)
+        if (object->thread() == this->thread())
+        {
+            locker.unlock();
             runner->runUICallback();
-        m_runningTasks.remove(target);
-        m_objectTasks.remove(object, target);
-        if (m_objectTasks.count(object) == 0)
-            disconnect(object, &QObject::destroyed, this, &ThreadRunner::runOnThreadTargetDestroyed);
+            runner->deleteLater();
+        }
+        else
+        {
+            //run the callback in the object thread
+            QMetaObject::invokeMethod(
+                const_cast<QObject*>(object),
+                [runner](){
+                    runner->runUICallback();
+                    runner->deleteLater();
+                }
+            );
+        }
     }
-    runner->deleteLater();
 }
 
 void ThreadRunner::runOnThreadTargetDestroyed(QObject * object)
 {
+    QMutexLocker locker{&m_lock};
     if (m_objectTasks.contains(object))
     {
         for (auto taskId : m_objectTasks.values(object))
         {
             auto task = m_runningTasks.value(taskId, nullptr);
             assert(task);
-            bool removed = m_threadPool.tryTake(task);
+            bool removed = tryTake(task);
             if (removed)
                 delete task;
             m_runningTasks.remove(taskId);

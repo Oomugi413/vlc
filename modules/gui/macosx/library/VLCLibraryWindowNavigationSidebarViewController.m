@@ -34,6 +34,11 @@
 
 #import "views/VLCStatusNotifierView.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 // This needs to match whatever identifier has been set in the library window XIB
 static NSString * const VLCLibrarySegmentCellIdentifier = @"VLCLibrarySegmentCellIdentifier";
 
@@ -41,6 +46,7 @@ static NSString * const VLCLibrarySegmentCellIdentifier = @"VLCLibrarySegmentCel
 
 @property BOOL ignoreSegmentSelectionChanges;
 @property (readonly) NSEdgeInsets scrollViewInsets;
+@property (readonly) NSMutableDictionary<NSString *, dispatch_source_t> *observedPathDispatchSources;
 
 @end
 
@@ -53,6 +59,7 @@ static NSString * const VLCLibrarySegmentCellIdentifier = @"VLCLibrarySegmentCel
         _libraryWindow = libraryWindow;
         _segments = VLCLibrarySegment.librarySegments;
         _ignoreSegmentSelectionChanges = NO;
+        _observedPathDispatchSources = NSMutableDictionary.dictionary;
     }
     return self;
 }
@@ -117,6 +124,14 @@ static NSString * const VLCLibrarySegmentCellIdentifier = @"VLCLibrarySegmentCel
 {
     const VLCLibrarySegmentType currentSegmentType = self.libraryWindow.librarySegmentType;
 
+    NSMutableSet<NSNumber *> * const expandedSegmentTypes = NSMutableSet.set;
+    for (VLCLibrarySegment * const segment in self.treeController.content) {
+        NSTreeNode * const node = [self nodeForSegmentType:segment.segmentType];
+        if ([self.outlineView isItemExpanded:node]) {
+            [expandedSegmentTypes addObject:@(segment.segmentType)];
+        }
+    }
+
     self.ignoreSegmentSelectionChanges = YES;
 
     _segments = VLCLibrarySegment.librarySegments;
@@ -134,6 +149,83 @@ static NSString * const VLCLibrarySegmentCellIdentifier = @"VLCLibrarySegmentCel
                   byExtendingSelection:NO];
 
     self.ignoreSegmentSelectionChanges = NO;
+
+    [self updateBookmarkObservation];
+
+    for (VLCLibrarySegment * const segment in self.treeController.content) {
+        if ([expandedSegmentTypes containsObject:@(segment.segmentType)]) {
+            NSTreeNode * const node = [self nodeForSegmentType:segment.segmentType];
+            [self.outlineView expandItem:node];
+        }
+    }
+}
+
+- (void)updateBookmarkObservation
+{
+    NSUserDefaults * const defaults = NSUserDefaults.standardUserDefaults;
+    NSArray<NSString *> * const bookmarkedLocations =
+        [defaults stringArrayForKey:VLCLibraryBookmarkedLocationsKey];
+    if (bookmarkedLocations.count == 0) {
+        return;
+    }
+
+    NSMutableArray<NSString *> * const deletedLocations = self.observedPathDispatchSources.allKeys.mutableCopy;
+    const __weak typeof(self) weakSelf = self;
+
+    for (NSString * const locationMrl in bookmarkedLocations) {
+        [deletedLocations removeObject:locationMrl];
+        if ([self.observedPathDispatchSources objectForKey:locationMrl] != nil) {
+            continue;
+        }
+        NSURL * const locationUrl = [NSURL URLWithString:locationMrl];
+        const uintptr_t descriptor = open(locationUrl.path.UTF8String, O_EVTONLY);
+        if (descriptor == -1) {
+            continue;
+        }
+        struct stat fileStat;
+        const int statResult = fstat(descriptor, &fileStat);
+
+        const dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+        const dispatch_source_t fileDispatchSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, descriptor, DISPATCH_VNODE_DELETE | DISPATCH_VNODE_RENAME, globalQueue);
+        dispatch_source_set_event_handler(fileDispatchSource, ^{
+            const unsigned long eventFlags = dispatch_source_get_data(fileDispatchSource);
+            if (eventFlags & DISPATCH_VNODE_RENAME && statResult != -1) {
+                NSURL * const parentLocationUrl = locationUrl.URLByDeletingLastPathComponent;
+                NSString * const parentLocationPath = parentLocationUrl.path;
+                NSArray<NSString *> * const files = [NSFileManager.defaultManager contentsOfDirectoryAtPath:parentLocationPath error:nil];
+                NSString *newFileName = nil;
+
+                for (NSString * const file in files) {
+                    NSString * const fullChildPath = [parentLocationPath stringByAppendingPathComponent:file];
+                    struct stat currentFileStat;
+                    if (stat(fullChildPath.UTF8String, &currentFileStat) == -1) {
+                        continue;
+                    } else if (currentFileStat.st_ino == fileStat.st_ino) {
+                        newFileName = fullChildPath.lastPathComponent;
+                        break;
+                    }
+                }
+
+                if (newFileName != nil) {
+                    NSMutableArray<NSString *> * const mutableBookmarkedLocations = bookmarkedLocations.mutableCopy;
+                    const NSUInteger locationIndex = [mutableBookmarkedLocations indexOfObject:locationMrl];
+                    NSString * const newLocationMrl = [parentLocationUrl URLByAppendingPathComponent:newFileName].absoluteString;
+                    [mutableBookmarkedLocations replaceObjectAtIndex:locationIndex withObject:newLocationMrl];
+                    [defaults setObject:mutableBookmarkedLocations forKey:VLCLibraryBookmarkedLocationsKey];
+                }
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [weakSelf internalNodesChanged:nil];
+            });
+        });
+        dispatch_source_set_cancel_handler(fileDispatchSource, ^{
+            close(descriptor);
+        });
+        dispatch_resume(fileDispatchSource);
+        [self.observedPathDispatchSources setObject:fileDispatchSource forKey:locationMrl];
+    }
+
+    [self.observedPathDispatchSources removeObjectsForKeys:deletedLocations];
 }
 
 - (void)statusViewActivated:(NSNotification *)notification

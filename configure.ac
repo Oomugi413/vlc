@@ -996,6 +996,13 @@ AS_IF([test "${SYS}" != "mingw32"], [
 ])
 AC_SUBST([LIBRT])
 
+dnl Check for libatomic
+have_libatomic="no"
+VLC_SAVE_FLAGS
+AC_SEARCH_LIBS([__atomic_load], [atomic], [have_libatomic="yes"])
+VLC_RESTORE_FLAGS
+AM_CONDITIONAL([HAVE_LIBATOMIC], [test "${have_libatomic}" = "yes"])
+
 dnl  Check for clock_* functions, needs to be done here,
 dnl  after the -lrt check
 AC_REPLACE_FUNCS([clock_gettime clock_nanosleep clock_getres])
@@ -1012,12 +1019,7 @@ AC_CHECK_HEADER([stdckdint.h],, [
 ])
 
 dnl  POSIX
-AC_CHECK_HEADERS([arpa/inet.h poll.h pthread.h search.h sys/shm.h sys/socket.h sys/uio.h wordexp.h])
-AC_CHECK_HEADERS([net/if.h], [], [],
-[
-#include <sys/types.h>
-#include <sys/socket.h>
-])
+AC_CHECK_HEADERS([arpa/inet.h net/if.h poll.h pthread.h search.h sys/shm.h sys/socket.h sys/uio.h wordexp.h])
 AC_CHECK_HEADER([syslog.h], [have_syslog="yes"], [have_syslog="no"])
 AM_CONDITIONAL([HAVE_SYSLOG], [test "$have_syslog" = "yes"])
 
@@ -1192,9 +1194,9 @@ AC_ARG_ENABLE([extra_checks],
                     [Turn some warnings into compilation error (default disabled)]),,
                     [enable_extra_checks="no"])
 AS_IF([test "${enable_extra_checks}" = "yes"], [
-    AX_APPEND_COMPILE_FLAGS([-Werror=missing-field-initializers -Werror=format -Werror=incompatible-pointer-types -Werror=restrict -Werror=int-conversion -Werror=implicit-int -Werror=return-mismatch -Werror=declaration-missing-parameter-type], [CFLAGS])
+    AX_APPEND_COMPILE_FLAGS([-Werror=missing-field-initializers -Werror=format -Werror=incompatible-pointer-types -Werror=restrict -Werror=int-conversion -Werror=implicit-int -Werror=return-mismatch -Werror=declaration-missing-parameter-type -Werror=excess-initializers], [CFLAGS])
     AC_LANG_PUSH(C++)
-    AX_APPEND_COMPILE_FLAGS([-Werror=missing-field-initializers -Werror=format], [CXXFLAGS])
+    AX_APPEND_COMPILE_FLAGS([-Werror=missing-field-initializers -Werror=format -Werror=excess-initializers], [CXXFLAGS])
     AC_LANG_POP(C++)
 ])
 

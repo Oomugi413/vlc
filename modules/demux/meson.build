@@ -246,7 +246,7 @@ if avformat_dep.found()
             'avformat/avformat.c',
             avformat_extra_sources
         ),
-        'dependencies' : [avformat_dep, avutil_dep],
+        'dependencies' : [avformat_dep, avutil_dep, avcodec_dep],
         'link_with' : [libavcodec_common],
         'link_args' : symbolic_linkargs,
         'enabled' : not get_option('merge-ffmpeg'),
@@ -365,6 +365,11 @@ if libdvbcsa_dep.found()
 endif
 
 if libdvbpsi_dep.found()
+    arrib24_define = []
+    if aribb24_dep.found()
+        arrib24_define += '-DHAVE_ARIBB24=1'
+    endif
+
     vlc_modules += {
         'name' : 'ts',
         'sources' : files(
@@ -391,7 +396,7 @@ if libdvbpsi_dep.found()
             '../codec/opus_header.c',
         ),
         'dependencies' : [libdvbpsi_dep, aribb24_dep, libdvbcsa_dep],
-        'c_args' : libdvbpsi_c_args,
+        'c_args' : [libdvbpsi_c_args, arrib24_define],
     }
 endif
 
@@ -405,8 +410,8 @@ vlc_modules += {
 }
 
 # mpc
-if get_option('mpc').allowed()
 mpc_dep = disabler()
+if get_option('mpc').allowed()
 if cc.check_header('mpc/mpcdec.h')
     mpc_dep = cc.find_library('mpcdec')
     cdata.set('HAVE_MPC_MPCDEC_H', 1)

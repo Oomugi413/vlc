@@ -22,6 +22,8 @@
 
 #import "VLCLibraryModel.h"
 
+#import "VLCMediaLibraryFolderObserver.h"
+
 #import "extensions/NSArray+VLCAdditions.h"
 #import "extensions/NSString+Helpers.h"
 
@@ -93,6 +95,8 @@ NSString * const VLCLibraryModelDiscoveryFailed = @"VLCLibraryModelDiscoveryFail
     dispatch_queue_t _genreCacheModificationQueue;
     dispatch_queue_t _groupCacheModificationQueue;
 }
+
+@property (readwrite) NSArray<VLCMediaLibraryFolderObserver *> *folderObservers;
 
 @property (readwrite, atomic) NSArray *cachedAudioMedia;
 @property (readwrite, atomic) NSArray *cachedArtists;
@@ -305,6 +309,8 @@ static void libraryCallback(void *p_data, const vlc_ml_event_t *p_event)
             self->_initialRecentsCount = vlc_ml_count_video_history(self->_p_mediaLibrary, &queryParameters);
             self->_initialRecentAudioCount = vlc_ml_count_audio_history(self->_p_mediaLibrary, &queryParameters);
         });
+
+        [self resetCachedListOfMonitoredFolders];
     }
     return self;
 }
@@ -765,18 +771,29 @@ static void libraryCallback(void *p_data, const vlc_ml_event_t *p_event)
             return;
         }
 
-        NSMutableArray *mutableArray = [[NSMutableArray alloc] initWithCapacity:pp_entrypoints->i_nb_items];
+        NSMutableArray * const mutableArray =
+            [[NSMutableArray alloc] initWithCapacity:pp_entrypoints->i_nb_items];
+        NSMutableArray * const mutableObservers =
+            [[NSMutableArray alloc] initWithCapacity:pp_entrypoints->i_nb_items];
+
         for (size_t x = 0; x < pp_entrypoints->i_nb_items; x++) {
-            VLCMediaLibraryEntryPoint *entryPoint = [[VLCMediaLibraryEntryPoint alloc] initWithEntryPoint:&pp_entrypoints->p_items[x]];
+            VLCMediaLibraryEntryPoint * const entryPoint =
+                [[VLCMediaLibraryEntryPoint alloc] initWithEntryPoint:&pp_entrypoints->p_items[x]];
             if (entryPoint) {
                 [mutableArray addObject:entryPoint];
+
+                NSURL * const url = [NSURL URLWithString:entryPoint.MRL];
+                VLCMediaLibraryFolderObserver * const observer =
+                    [[VLCMediaLibraryFolderObserver alloc] initWithURL:url];
+                [mutableObservers addObject:observer];
             }
         }
 
         vlc_ml_folder_list_release(pp_entrypoints);
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            self.cachedListOfMonitoredFolders = [mutableArray copy];
+            self.cachedListOfMonitoredFolders = mutableArray.copy;
+            self.folderObservers = mutableObservers.copy;
             [self.changeDelegate notifyChange:VLCLibraryModelListOfMonitoredFoldersUpdated withObject:self];
         });
     });

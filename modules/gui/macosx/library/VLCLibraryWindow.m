@@ -38,6 +38,7 @@
 #import "playqueue/VLCPlayQueueController.h"
 
 #import "library/VLCInputItem.h"
+#import "library/VLCLibraryAbstractMediaLibrarySegmentViewController.h"
 #import "library/VLCLibraryController.h"
 #import "library/VLCLibraryCollectionViewItem.h"
 #import "library/VLCLibraryCollectionViewSupplementaryElementView.h"
@@ -231,7 +232,11 @@ static void addShadow(NSImageView *__unsafe_unretained imageView)
 {
     const VLCLibrarySegmentType segmentType = self.librarySegmentType;
     VLCLibrarySegment * const segment = [VLCLibrarySegment segmentWithSegmentType:segmentType];
+    [self applySegmentView:segment];
+}
 
+- (void)applySegmentView:(VLCLibrarySegment *)segment
+{
     [self.toolbarDelegate applyVisiblityFlags:segment.toolbarDisplayFlags];
     if (![self.librarySegmentViewController isKindOfClass:segment.libraryViewControllerClass]) {
         _librarySegmentViewController = [segment newLibraryViewController];
@@ -315,49 +320,13 @@ static void addShadow(NSImageView *__unsafe_unretained imageView)
     ]];
 }
 
-- (void)presentAudioLibraryItem:(id<VLCMediaLibraryItemProtocol>)libraryItem
-{
-    self.librarySegmentType = VLCLibraryMusicSegmentType;
-    [(VLCLibraryAudioViewController *)self.librarySegmentViewController presentLibraryItem:libraryItem];
-}
-
-- (void)presentVideoLibraryItem:(id<VLCMediaLibraryItemProtocol>)libraryItem
-{
-    self.librarySegmentType = VLCLibraryVideoSegmentType;
-    [(VLCLibraryVideoViewController *)self.librarySegmentViewController presentLibraryItem:libraryItem];
-}
-
-- (void)presentGroupLibraryItem:(id<VLCMediaLibraryItemProtocol>)libraryItem
-{
-    self.librarySegmentType = VLCLibraryGroupsSegmentType;
-    [(VLCLibraryGroupsViewController *)self.librarySegmentViewController presentGroup:libraryItem];
-}
-
 - (void)presentLibraryItem:(id<VLCMediaLibraryItemProtocol>)libraryItem
 {
-    const BOOL isAudioGroup = [libraryItem isKindOfClass:VLCMediaLibraryAlbum.class] ||
-                              [libraryItem isKindOfClass:VLCMediaLibraryArtist.class] ||
-                              [libraryItem isKindOfClass:VLCMediaLibraryGenre.class];
-
-    if (isAudioGroup) {
-        [self presentAudioLibraryItem:libraryItem];
-        return;
-    } else if ([libraryItem isKindOfClass:VLCMediaLibraryGroup.class]) {
-        [self presentGroupLibraryItem:libraryItem];
-        return;
+    VLCLibrarySegment * const segment = [VLCLibrarySegment segmentForLibraryItem:libraryItem];
+    [self applySegmentView:segment];
+    if ([self.librarySegmentViewController conformsToProtocol:@protocol(VLCLibraryItemPresentingCapable)]) {
+        [(VLCLibraryAbstractSegmentViewController<VLCLibraryItemPresentingCapable> *)self.librarySegmentViewController presentLibraryItem:libraryItem];
     }
-
-    VLCMediaLibraryMediaItem * const mediaItem = (VLCMediaLibraryMediaItem *)libraryItem;
-    const BOOL validMediaItem = mediaItem != nil;
-    if (validMediaItem && mediaItem.mediaType == VLC_ML_MEDIA_TYPE_AUDIO) {
-        [self presentAudioLibraryItem:libraryItem];
-        return;
-    } else if (validMediaItem && mediaItem.mediaType == VLC_ML_MEDIA_TYPE_VIDEO) {
-        [self presentVideoLibraryItem:libraryItem];
-        return;
-    }
-
-    NSLog(@"Unknown kind of library item provided, cannot present library view for it: %@", libraryItem.displayString);
 }
 
 - (void)goToLocalFolderMrl:(NSString *)mrl
@@ -404,31 +373,7 @@ static void addShadow(NSImageView *__unsafe_unretained imageView)
 
 - (BOOL)handlePasteBoardFromDragSession:(NSPasteboard *)paste
 {
-    id propertyList = [paste propertyListForType:NSFilenamesPboardType];
-    if (propertyList == nil) {
-        return NO;
-    }
-
-    NSArray *values = [propertyList sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-    NSUInteger valueCount = [values count];
-    if (valueCount > 0) {
-        NSMutableArray *metadataArray = [NSMutableArray arrayWithCapacity:valueCount];
-
-        for (NSString *filepath in values) {
-            VLCOpenInputMetadata *inputMetadata;
-
-            inputMetadata = [VLCOpenInputMetadata inputMetaWithPath:filepath];
-            if (!inputMetadata)
-                continue;
-
-            [metadataArray addObject:inputMetadata];
-        }
-        [_playQueueController addPlayQueueItems:metadataArray];
-
-        return YES;
-    }
-
-    return NO;
+    return [VLCFileDragRecognisingView handlePasteboardFromDragSessionAsPlayQueueItems:paste];
 }
 
 - (IBAction)goToBrowseSection:(id)sender
@@ -594,7 +539,9 @@ static void addShadow(NSImageView *__unsafe_unretained imageView)
 
     self.splitViewController.multifunctionSidebarViewController.mainVideoModeEnabled = YES;
 
-    [self.librarySegmentViewController disconnect];
+    if ([self.librarySegmentViewController isKindOfClass:VLCLibraryAbstractMediaLibrarySegmentViewController.class]) {
+        [(VLCLibraryAbstractMediaLibrarySegmentViewController *)self.librarySegmentViewController disconnect];
+    }
 }
 
 - (void)disableVideoPlaybackAppearance
@@ -612,6 +559,10 @@ static void addShadow(NSImageView *__unsafe_unretained imageView)
 
     if (self.presentLoadingOverlayOnVideoPlaybackHide) {
         [self showLoadingOverlay];
+    }
+
+    if ([self.librarySegmentViewController isKindOfClass:VLCLibraryAbstractMediaLibrarySegmentViewController.class]) {
+        [(VLCLibraryAbstractMediaLibrarySegmentViewController *)self.librarySegmentViewController connect];
     }
 }
 

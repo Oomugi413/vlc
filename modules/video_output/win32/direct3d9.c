@@ -159,7 +159,6 @@ typedef struct vout_display_sys_t
 
     /* range converter */
     struct {
-        HMODULE                 dll;
         IDXVAHD_VideoProcessor *proc;
     } processor;
 } vout_display_sys_t;
@@ -187,9 +186,9 @@ static HINSTANCE Direct3D9LoadShaderLibrary(void)
 {
     HINSTANCE instance = NULL;
     for (int i = 43; i > 23; --i) {
-        WCHAR filename[16];
-        _snwprintf(filename, ARRAY_SIZE(filename), TEXT("D3dx9_%d.dll"), i);
-        instance = LoadLibrary(filename);
+        char filename[16];
+        _snprintf(filename, ARRAY_SIZE(filename), "D3dx9_%d.dll", i);
+        instance = LoadLibraryExA(filename, NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (instance)
             break;
     }
@@ -668,7 +667,7 @@ static int Direct3D9CompileShader(vout_display_t *vd, const char *shader_source,
 {
     vout_display_sys_t *sys = vd->sys;
 
-    HRESULT (WINAPI * OurD3DXCompileShader)(
+    typedef HRESULT (WINAPI * OurD3DXCompileShader_ptr)(
             LPCSTR pSrcData,
             UINT srcDataLen,
             const D3DXMACRO *pDefines,
@@ -680,7 +679,8 @@ static int Direct3D9CompileShader(vout_display_t *vd, const char *shader_source,
             LPD3DXBUFFER *ppErrorMsgs,
             LPD3DXCONSTANTTABLE *ppConstantTable);
 
-    OurD3DXCompileShader = (void*)GetProcAddress(sys->hxdll, "D3DXCompileShader");
+    OurD3DXCompileShader_ptr OurD3DXCompileShader;
+    OurD3DXCompileShader = (OurD3DXCompileShader_ptr)GetProcAddress(sys->hxdll, "D3DXCompileShader");
     if (!OurD3DXCompileShader) {
         msg_Warn(vd, "Cannot locate reference to D3DXCompileShader; pixel shading will be disabled");
         return VLC_EGENERIC;
@@ -1270,7 +1270,6 @@ static void Direct3D9Destroy(vout_display_sys_t *sys)
     if (sys->processor.proc)
     {
         IDXVAHD_VideoProcessor_Release(sys->processor.proc);
-        FreeLibrary(sys->processor.dll);
     }
     if (sys->dec_device)
         vlc_decoder_device_Release(sys->dec_device);
@@ -1352,7 +1351,8 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
         msg_Warn( vd, "Disabling hardware chroma conversion due to odd dimensions" );
 
     for (unsigned pass = 0; pass < 2; pass++) {
-        const vlc_fourcc_t *list;
+        const vlc_fourcc_t *list = NULL;
+        vlc_fourcc_t *fallback_list = NULL;
         const vlc_fourcc_t dxva_chroma[] = {fmt->i_chroma, 0};
         D3DFORMAT decoder_format = D3DFMT_UNKNOWN;
 
@@ -1365,10 +1365,11 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
             msg_Dbg(vd, "favor decoder format: %4.4s (%d)", (const char*)&decoder_format, decoder_format);
         }
         else if (pass == 0 && hardware_scale_ok && sys->allow_hw_yuv && vlc_fourcc_IsYUV(fmt->i_chroma))
-            list = vlc_fourcc_GetYUVFallback(fmt->i_chroma);
+            list = fallback_list = vlc_fourcc_GetYUVFallback(fmt->i_chroma);
         else if (pass == 1)
-            list = vlc_fourcc_GetRGBFallback(fmt->i_chroma);
-        else
+            list = fallback_list = vlc_fourcc_GetRGBFallback(fmt->i_chroma);
+
+        if (list == NULL)
             continue;
 
         for (unsigned i = 0; list[i] != 0; i++) {
@@ -1382,9 +1383,13 @@ static const d3d9_format_t *Direct3DFindFormat(vout_display_t *vd, const video_f
 
                 msg_Dbg(vd, "trying surface pixel format: %s", format->name);
                 if (!Direct3D9CheckConversion(vd, format->format))
+                {
+                    free(fallback_list);
                     return format;
+                }
             }
         }
+        free(fallback_list);
     }
     return NULL;
 }
@@ -1448,27 +1453,9 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
 
     HRESULT hr;
 
-    sys->processor.dll = LoadLibrary(TEXT("DXVA2.DLL"));
-    if (unlikely(!sys->processor.dll))
-    {
-        msg_Err(vd, "Failed to load DXVA2.DLL");
-        return VLC_EGENERIC;
-    }
-
     D3DFORMAT *formatsList = NULL;
     DXVAHD_VPCAPS *capsList = NULL;
     IDXVAHD_Device *hd_device = NULL;
-
-#ifdef __MINGW64_VERSION_MAJOR
-    typedef HRESULT (WINAPI* PDXVAHD_CreateDevice)(IDirect3DDevice9Ex *,const DXVAHD_CONTENT_DESC *,DXVAHD_DEVICE_USAGE,PDXVAHDSW_Plugin,IDXVAHD_Device **);
-#endif
-    PDXVAHD_CreateDevice CreateDevice;
-    CreateDevice = (PDXVAHD_CreateDevice)GetProcAddress(sys->processor.dll, "DXVAHD_CreateDevice");
-    if (CreateDevice == NULL)
-    {
-        msg_Err(vd, "Can't create HD device (not Windows 7+)");
-        goto error;
-    }
 
     DXVAHD_CONTENT_DESC desc;
     desc.InputFrameFormat = DXVAHD_FRAME_FORMAT_PROGRESSIVE;
@@ -1479,7 +1466,7 @@ static int InitRangeProcessor(vout_display_t *vd, const d3d9_format_t *d3dfmt,
     desc.OutputWidth      = vd->source->i_visible_width;
     desc.OutputHeight     = vd->source->i_visible_height;
 
-    hr = CreateDevice(sys->d3d9_device->d3ddev.devex, &desc, DXVAHD_DEVICE_USAGE_PLAYBACK_NORMAL, NULL, &hd_device);
+    hr = DXVAHD_CreateDevice(sys->d3d9_device->d3ddev.devex, &desc, DXVAHD_DEVICE_USAGE_PLAYBACK_NORMAL, NULL, &hd_device);
     if (FAILED(hr))
     {
         msg_Dbg(vd, "Failed to create the device (error 0x%lX)", hr);
@@ -1580,7 +1567,6 @@ error:
     free(formatsList);
     if (hd_device)
         IDXVAHD_Device_Release(hd_device);
-    FreeLibrary(sys->processor.dll);
     return VLC_EGENERIC;
 }
 

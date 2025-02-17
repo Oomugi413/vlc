@@ -49,6 +49,9 @@
 #include "demux-run.h"
 #include "decoder.h"
 
+void vlc_object_InitInputConfig(vlc_object_t *obj,
+                                bool playback, bool do_inherit);
+
 struct test_es_out_t
 {
     struct es_out_t out;
@@ -185,8 +188,9 @@ static int EsOutControl(es_out_t *out, input_source_t* in, int query, va_list ar
         case ES_OUT_SET_GROUP_EPG:
         case ES_OUT_DEL_GROUP:
         case ES_OUT_SET_ES_SCRAMBLED_STATE:
+        case ES_OUT_DRAIN:
             break;
-        case ES_OUT_GET_EMPTY:
+        case ES_OUT_IS_EMPTY:
             *va_arg(args, bool *) = true;
             break;
         case ES_OUT_SET_META:
@@ -221,6 +225,8 @@ static const struct es_out_callbacks es_out_cbs =
 
 static es_out_t *test_es_out_create(vlc_object_t *parent)
 {
+    vlc_object_InitInputConfig(parent, true, false);
+
     struct test_es_out_t *ctx = malloc(sizeof (*ctx));
     if (ctx == NULL)
     {

@@ -124,9 +124,7 @@ skins2_sources += files(
 )
 endif
 
-dep_x11 = cc.find_library('X11', required: get_option('x11'))
-
-if dep_x11.found()
+if x11_dep.found()
 skins2_flags += [ '-DX11_SKINS' ]
 skins2_sources += files(
     'x11/x11_display.cpp',
@@ -140,7 +138,7 @@ skins2_sources += files(
     'x11/x11_tooltip.cpp',
 )
 skins2_deps += [
-    dep_x11,
+    x11_dep,
     dependency('xpm', required: true),
     dependency('xinerama', required: true),
     dependency('xcursor', required: true),
@@ -154,5 +152,7 @@ vlc_modules += {
     'dependencies' : [ skins2_deps ],
     'c_args' : skins2_flags,
     'cpp_args' : [skins2_flags, '-O2', '-fno-rtti'],
-    'enabled' : get_option('skins2').allowed() and freetype_dep.found() and host_system != 'darwin'
+    'enabled' : get_option('skins2')
+      .disable_auto_if(host_system != 'windows' and not x11_dep.found()).allowed() and
+      freetype_dep.found() and host_system != 'darwin'
 }

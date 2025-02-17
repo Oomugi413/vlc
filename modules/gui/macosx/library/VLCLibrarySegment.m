@@ -26,6 +26,7 @@
 
 #import "library/VLCInputItem.h"
 #import "library/VLCLibraryController.h"
+#import "library/VLCLibraryDataTypes.h"
 #import "library/VLCLibraryModel.h"
 #import "library/VLCLibrarySegmentBookmarkedLocation.h"
 #import "library/VLCLibraryWindow.h"
@@ -732,8 +733,13 @@ NSArray<NSString *> *defaultBookmarkedLocations()
 
         const VLCLibrarySegmentType segmentType = VLCLibraryBrowseBookmarkedLocationSubSegmentType;
         NSMutableArray<NSTreeNode *> * const bookmarkedLocationNodes = NSMutableArray.array;
+        NSMutableArray<NSString *> * const remainingBookmarkedLocations = bookmarkedLocations.mutableCopy;
 
         for (NSString * const locationMrl in bookmarkedLocations) {
+            if (![NSFileManager.defaultManager fileExistsAtPath:[NSURL URLWithString:locationMrl].path]) {
+                [remainingBookmarkedLocations removeObject:locationMrl];
+                continue;
+            }
             NSString * const locationName = locationMrl.lastPathComponent;
             VLCLibrarySegmentBookmarkedLocation * const descriptor =
                 [[VLCLibrarySegmentBookmarkedLocation alloc] initWithSegmentType:segmentType
@@ -745,6 +751,10 @@ NSArray<NSString *> *defaultBookmarkedLocations()
         }
 
         self.internalChildNodes = bookmarkedLocationNodes.copy;
+
+        if (bookmarkedLocations.count != remainingBookmarkedLocations.count) {
+            [defaults setObject:remainingBookmarkedLocations forKey:VLCLibraryBookmarkedLocationsKey];
+        }
     }
     return self;
 }
@@ -844,6 +854,33 @@ NSArray<NSString *> *defaultBookmarkedLocations()
         default:
             return nil;
     }
+}
+
++ (instancetype)segmentForLibraryItem:(id<VLCMediaLibraryItemProtocol>)libraryItem
+{
+    if ([libraryItem isKindOfClass:VLCMediaLibraryAlbum.class]) {
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryAlbumsMusicSubSegmentType];
+    } else if ([libraryItem isKindOfClass:VLCMediaLibraryArtist.class]) {
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryArtistsMusicSubSegmentType];
+    } else if ([libraryItem isKindOfClass:VLCMediaLibraryGenre.class]) {
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryGenresMusicSubSegmentType];
+    } else if ([libraryItem isKindOfClass:VLCMediaLibraryGroup.class]) {
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryGroupsSegmentType];
+    }
+
+    VLCMediaLibraryMediaItem * const mediaItem = (VLCMediaLibraryMediaItem *)libraryItem;
+    const BOOL validMediaItem = mediaItem != nil;
+    if (validMediaItem && mediaItem.mediaType == VLC_ML_MEDIA_TYPE_AUDIO) {
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryMusicSegmentType];
+    } else if (validMediaItem && mediaItem.mediaType == VLC_ML_MEDIA_TYPE_VIDEO) {
+        if (mediaItem.mediaSubType == VLC_ML_MEDIA_SUBTYPE_SHOW_EPISODE) {
+            return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryShowsVideoSubSegmentType];
+        }
+        return [VLCLibrarySegment segmentWithSegmentType:VLCLibraryVideoSegmentType];
+    }
+
+    NSLog(@"Unknown library item type provided, cannot find segment for it: %@", libraryItem.displayString);
+    return nil;
 }
 
 - (instancetype)initWithSegmentType:(VLCLibrarySegmentType)segmentType

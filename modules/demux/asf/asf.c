@@ -737,10 +737,6 @@ static void ASF_fillup_es_priorities_ex( demux_sys_t *p_sys, void *p_hdr,
             ASF_FindObject( p_hdr, &asf_object_advanced_mutual_exclusion, 0 );
     if (! p_mutex ) return;
 
-#if ( UINT_MAX > SIZE_MAX / 2 )
-    if ( p_sys->i_track > (size_t)SIZE_MAX / sizeof(*p_prios->pi_stream_numbers) )
-        return;
-#endif
     p_prios->pi_stream_numbers = vlc_alloc( p_sys->i_track, sizeof(*p_prios->pi_stream_numbers) );
     if ( !p_prios->pi_stream_numbers ) return;
 
@@ -764,10 +760,6 @@ static void ASF_fillup_es_bitrate_priorities_ex( demux_sys_t *p_sys, void *p_hdr
             ASF_FindObject( p_hdr, &asf_object_bitrate_mutual_exclusion_guid, 0 );
     if (! p_bitrate_mutex ) return;
 
-#if ( UINT_MAX > SIZE_MAX / 2 )
-    if ( p_sys->i_track > (size_t)SIZE_MAX / sizeof(*p_prios->pi_stream_numbers) )
-        return;
-#endif
     p_prios->pi_stream_numbers = vlc_alloc( p_sys->i_track, sizeof(*p_prios->pi_stream_numbers) );
     if ( !p_prios->pi_stream_numbers ) return;
 
@@ -1232,9 +1224,6 @@ static int DemuxInit( demux_t *p_demux )
         es_format_Clean( &fmt );
     }
 
-    free( fmt_priorities_ex.pi_stream_numbers );
-    free( fmt_priorities_bitrate_ex.pi_stream_numbers );
-
     p_sys->i_data_begin = p_sys->p_root->p_data->i_object_pos + 50;
     if( p_sys->p_root->p_data->i_object_size > 50 ) /* see libasf ASF_OBJECT_DATA <= 50 handling */
     { /* local file */
@@ -1367,6 +1356,8 @@ static int DemuxInit( demux_t *p_demux )
         }
     }
 #endif
+    free( fmt_priorities_ex.pi_stream_numbers );
+    free( fmt_priorities_bitrate_ex.pi_stream_numbers );
 
     p_sys->packet_sys.pi_preroll = &p_sys->p_fp->i_preroll;
     p_sys->packet_sys.pi_preroll_start = &p_sys->i_preroll_start;
@@ -1375,6 +1366,8 @@ static int DemuxInit( demux_t *p_demux )
     return VLC_SUCCESS;
 
 error:
+    free( fmt_priorities_ex.pi_stream_numbers );
+    free( fmt_priorities_bitrate_ex.pi_stream_numbers );
     DemuxEnd( p_demux );
     return VLC_EGENERIC;
 }
@@ -1446,4 +1439,3 @@ static void DemuxEnd( demux_t *p_demux )
         p_sys->track[i] = 0;
     }
 }
-

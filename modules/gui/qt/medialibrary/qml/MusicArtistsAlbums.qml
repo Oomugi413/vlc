@@ -78,8 +78,6 @@ FocusScope {
 
         if (model.count === 0 || initialIndex === -1) return
 
-        selectionModel.select(model.index(initialIndex, 0), ItemSelectionModel.ClearAndSelect)
-
         artistList.positionViewAtIndex(initialIndex, ItemView.Contain)
 
         artistList.setCurrentItem(initialIndex)
@@ -142,8 +140,6 @@ FocusScope {
 
             property bool _sidebarInitialyPositioned: false
 
-            signal showArtist(var artistid)
-
             model: artistModel
             selectionModel: root.selectionModel
             currentIndex: -1
@@ -167,11 +163,6 @@ FocusScope {
                     return
                 root.artistId = model.getDataAt(currentIndex).id
             }
-
-            onShowArtist: (artistId) => {
-                root.artistId = artistId
-            }
-
 
             Widgets.AcrylicBackground {
                 id: artistListBackground

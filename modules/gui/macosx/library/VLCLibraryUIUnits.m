@@ -34,6 +34,11 @@
 
 #import "windows/controlsbar/VLCControlsBarCommon.h"
 
+NSString * const VLCLibraryCollectionViewItemAdjustmentKey = @"VLCLibraryCollectionViewItemAdjustmentKey";
+
+@implementation VLCCollectionViewItemSizing
+@end
+
 @implementation VLCLibraryUIUnits
 
 + (const CGFloat)largeSpacing
@@ -111,6 +116,16 @@
     return 200;
 }
 
++ (const CGFloat)collectionViewItemMinimumWidth
+{
+    return 40;
+}
+
++ (const unsigned short)collectionViewMinItemsInRow
+{
+    return 2;
+}
+
 + (const CGFloat)collectionViewItemSpacing
 {
     return [self largeSpacing];
@@ -126,30 +141,41 @@
                                                      withLayout:(VLCLibraryCollectionViewFlowLayout *)collectionViewLayout
                                            withItemsAspectRatio:(VLCLibraryCollectionViewItemAspectRatio)itemsAspectRatio
 {
-    static uint numItemsInRow = 5;
-    static uint minItemsInRow = 2;
+    return [self adjustedItemSizingForCollectionView:collectionView
+                                          withLayout:collectionViewLayout
+                                withItemsAspectRatio:itemsAspectRatio].itemSize;
+}
 
-    NSSize itemSize = [self itemSizeForCollectionView:collectionView
-                                           withLayout:collectionViewLayout
-                                 withItemsAspectRatio:itemsAspectRatio
-                               withNumberOfItemsInRow:numItemsInRow];
++ (VLCCollectionViewItemSizing *)adjustedItemSizingForCollectionView:(NSCollectionView *)collectionView
+                                                          withLayout:(VLCLibraryCollectionViewFlowLayout *)collectionViewLayout
+                                                withItemsAspectRatio:(VLCLibraryCollectionViewItemAspectRatio)itemsAspectRatio
+{
+    const NSEdgeInsets sectionInsets = collectionViewLayout.sectionInset;
+    const CGFloat interItemSpacing = collectionViewLayout.minimumInteritemSpacing;
+    const CGFloat availableWidth =
+        collectionView.bounds.size.width - (sectionInsets.left + sectionInsets.right);
+    const float maxPossibleNumItemsInRow =
+        floor(availableWidth / (VLCLibraryUIUnits.dynamicCollectionViewItemMinimumWidth + interItemSpacing));
+    const float minPossibleNumItemsInRow =
+        MIN(ceil(availableWidth / (VLCLibraryUIUnits.dynamicCollectionViewItemMaximumWidth + interItemSpacing)), maxPossibleNumItemsInRow);
 
-    while (itemSize.width > VLCLibraryUIUnits.dynamicCollectionViewItemMaximumWidth) {
-        ++numItemsInRow;
-        itemSize = [self itemSizeForCollectionView:collectionView
-                                        withLayout:collectionViewLayout
-                              withItemsAspectRatio:itemsAspectRatio
-                            withNumberOfItemsInRow:numItemsInRow];
-    }
-    while (itemSize.width < VLCLibraryUIUnits.dynamicCollectionViewItemMinimumWidth && numItemsInRow > minItemsInRow) {
-        --numItemsInRow;
-        itemSize = [self itemSizeForCollectionView:collectionView
-                                        withLayout:collectionViewLayout
-                              withItemsAspectRatio:itemsAspectRatio
-                            withNumberOfItemsInRow:numItemsInRow];
-    }
+    const NSInteger adjustment =
+        [NSUserDefaults.standardUserDefaults integerForKey:VLCLibraryCollectionViewItemAdjustmentKey];
+    const uint midPossibleNumItemsInRow =
+        round((minPossibleNumItemsInRow + maxPossibleNumItemsInRow) / 2.0);
 
-    return itemSize;
+    const int unclampedNumItemsInRow = midPossibleNumItemsInRow + adjustment;
+    const uint numItemsInRow = MAX(unclampedNumItemsInRow, VLCLibraryUIUnits.collectionViewMinItemsInRow);
+    const NSSize itemSize = [self itemSizeForCollectionView:collectionView
+                                                 withLayout:collectionViewLayout
+                                       withItemsAspectRatio:itemsAspectRatio
+                                     withNumberOfItemsInRow:numItemsInRow];
+
+    VLCCollectionViewItemSizing * const itemSizing = [[VLCCollectionViewItemSizing alloc] init];
+    itemSizing.itemSize = itemSize;
+    itemSizing.rowItemCount = numItemsInRow;
+    itemSizing.unclampedRowItemCount = unclampedNumItemsInRow;
+    return itemSizing;
 }
 
 + (const NSSize)itemSizeForCollectionView:(NSCollectionView *)collectionView
@@ -157,9 +183,7 @@
                      withItemsAspectRatio:(VLCLibraryCollectionViewItemAspectRatio)itemsAspectRatio
                    withNumberOfItemsInRow:(uint)numItemsInRow
 {
-    NSParameterAssert(numItemsInRow > 0);
-    NSParameterAssert(collectionView);
-    NSParameterAssert(collectionViewLayout);
+    NSParameterAssert(numItemsInRow > 0 && collectionView && collectionViewLayout);
 
     const NSEdgeInsets sectionInsets = collectionViewLayout.sectionInset;
     const CGFloat interItemSpacing = collectionViewLayout.minimumInteritemSpacing;
@@ -170,7 +194,7 @@
                                      (interItemSpacing * (numItemsInRow - 1)) +
                                      1);
 
-    const CGFloat itemWidth = rowOfItemsWidth / numItemsInRow;
+    const CGFloat itemWidth = MAX(rowOfItemsWidth / numItemsInRow, 1);
     const CGFloat itemHeight = itemsAspectRatio == VLCLibraryCollectionViewItemAspectRatioDefaultItem ?
         itemWidth + VLCLibraryCollectionViewItem.bottomTextViewsHeight :
         (itemWidth * [VLCLibraryCollectionViewItem videoHeightAspectRatioMultiplier]) + VLCLibraryCollectionViewItem.bottomTextViewsHeight;

@@ -99,7 +99,7 @@ T.ItemDelegate {
 
                 if (!(root.selected && button === Qt.RightButton)) {
                     view.selectionModel.updateSelection(point.modifiers, view.currentIndex, index)
-                    view.showArtist(model.id)
+                    view.currentIndex = root.index
                 }
             }
 
@@ -126,7 +126,7 @@ T.ItemDelegate {
                     if (active) {
                         if (!selected) {
                             view.selectionModel.select(index, ItemSelectionModel.ClearAndSelect)
-                            view.showArtist(model.id)
+                            view.currentIndex = root.index
                         }
 
                         target.Drag.active = true
@@ -177,9 +177,12 @@ T.ItemDelegate {
             readonly property real eDPR: MainCtx.effectiveDevicePixelRatio(Window.window)
 
             Rectangle {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                anchors.alignWhenCentered: false
 
-                anchors.margins: -border.width
+                implicitWidth: roundImage.paintedWidth + border.width
+                implicitHeight: roundImage.paintedHeight + border.width
+
                 z: -1
 
                 radius: roundImage.effectiveRadius

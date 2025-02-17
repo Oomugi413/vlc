@@ -70,9 +70,6 @@
 /* AMD HQScaler supported */
 #mesondefine HAVE_AMF_SCALER
 
-/* Define if libaribb24 is available. */
-#mesondefine HAVE_ARIBB24
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #mesondefine HAVE_ARPA_INET_H
 
@@ -216,14 +213,6 @@
 /*
  * Library check macros
  */
-
-
-
-/* Define to 1 if you have the <libavcodec/d3d11va.h> header file. */
-#mesondefine HAVE_LIBAVCODEC_D3D11VA_H
-
-/* Define to 1 if you have the <libavcodec/dxva2.h> header file. */
-#mesondefine HAVE_LIBAVCODEC_DXVA2_H
 
 /* TODO: Properly check for the avformat header
  */

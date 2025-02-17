@@ -50,62 +50,27 @@ FadingEdge {
     // FIXME: Delegate with variable size
     readonly property Item delegateItem: (listView.count > 0) ? listView.itemAtIndex(0) : null
 
-    readonly property Item firstVisibleItem: {
-        if (transitionsRunning || !delegateItem)
-            return null
-
-        let margin = 0 // -root.beginningMargin
-        if (orientation === Qt.Vertical) {
-            // if (headerItem && headerItem.visible && headerPositioning === ListView.OverlayHeader)
-            //    margin += headerItem.height
-
-            return listView.itemAt(sourceX + (delegateItem.x + delegateItem.width / 2),
-                                   sourceY + margin - beginningMargin + listView.spacing)
-        } else {
-            // if (headerItem && headerItem.visible && headerPositioning === ListView.OverlayHeader)
-            //    margin += headerItem.width
-
-            return listView.itemAt(sourceX + margin - beginningMargin + listView.spacing,
-                                   sourceY + (delegateItem.y + delegateItem.height / 2))
-        }
-    }
-
-    readonly property Item lastVisibleItem: {
-        if (transitionsRunning || !delegateItem)
-            return null
-
-        let margin = 0 // -root.endMargin
-        if (orientation === Qt.Vertical) {
-            // if (footerItem && footerItem.visible && footerPositioning === ListView.OverlayFooter)
-            //    margin += footerItem.height
-
-            return listView.itemAt(sourceX + (delegateItem.x + delegateItem.width / 2),
-                                   sourceY + listView.height - margin + endMargin - listView.spacing - 1)
-        } else {
-            // if (footerItem && footerItem.visible && footerPositioning === ListView.OverlayFooter)
-            //    margin += footerItem.width
-
-            return listView.itemAt(sourceX + listView.width - margin + endMargin - listView.spacing - 1,
-                                   sourceY + (delegateItem.y + delegateItem.height / 2))
-        }
-    }
 
     readonly property bool _fadeRectEnoughSize: (orientation === Qt.Vertical ? listView.height
                                                                              : listView.width) > (fadeSize * 2 + VLCStyle.dp(25))
 
+    readonly property rect _currentItemMappedRect: listView.currentItem ? Qt.rect(listView.currentItem.x - sourceX,
+                                                                                  listView.currentItem.y - sourceY,
+                                                                                  listView.currentItem.width,
+                                                                                  listView.currentItem.height)
+                                                                        : Qt.rect(-1, -1, -1, -1)
+
     enableBeginningFade: _fadeRectEnoughSize &&
+                         !beginningHoverHandler.hovered &&
                          (orientation === Qt.Vertical ? !listView.atYBeginning
                                                       : !listView.atXBeginning) &&
-                         (!firstVisibleItem ||
-                         (!firstVisibleItem.activeFocus &&
-                          !(firstVisibleItem?.hovered ?? true)))
+                         Helpers.itemIntersects(beginningArea, _currentItemMappedRect)
 
     enableEndFade: _fadeRectEnoughSize &&
+                   !endHoverHandler.hovered &&
                    (orientation === Qt.Vertical ? !listView.atYEnd
                                                 : !listView.atXEnd) &&
-                   (!lastVisibleItem ||
-                   (!lastVisibleItem.activeFocus &&
-                    !(lastVisibleItem?.hovered ?? true)))
+                   Helpers.itemIntersects(endArea, _currentItemMappedRect)
 
     Binding on enableBeginningFade {
         when: !!listView.headerItem && (listView.headerPositioning !== ListView.InlineHeader)
@@ -115,5 +80,59 @@ FadingEdge {
     Binding on enableEndFade {
         when: !!listView.footerItem && (listView.footerPositioning !== ListView.InlineFooter)
         value: false
+    }
+
+    Item {
+        id: beginningArea
+
+        z: 99
+        parent: root.listView
+
+        anchors {
+            top: parent.top
+            left: parent.left
+
+            topMargin: (orientation === Qt.Vertical) ? beginningMargin : undefined
+            leftMargin: (orientation === Qt.Horizontal) ? beginningMargin : undefined
+
+            bottom: (orientation === Qt.Horizontal) ? parent.bottom : undefined
+            right: (orientation === Qt.Vertical) ? parent.right : undefined
+        }
+
+        implicitWidth: fadeSize
+        implicitHeight: fadeSize
+
+        HoverHandler {
+            id: beginningHoverHandler
+
+            grabPermissions: PointerHandler.ApprovesTakeOverByAnything
+        }
+    }
+
+    Item {
+        id: endArea
+
+        z: 99
+        parent: root.listView
+
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+
+            bottomMargin: (orientation === Qt.Vertical) ? beginningMargin : undefined
+            rightMargin: (orientation === Qt.Horizontal) ? beginningMargin : undefined
+
+            top: (orientation === Qt.Horizontal) ? parent.top : undefined
+            left: (orientation === Qt.Vertical) ? parent.left : undefined
+        }
+
+        implicitWidth: fadeSize
+        implicitHeight: fadeSize
+
+        HoverHandler {
+            id: endHoverHandler
+
+            grabPermissions: PointerHandler.ApprovesTakeOverByAnything
+        }
     }
 }

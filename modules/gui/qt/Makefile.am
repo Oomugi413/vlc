@@ -51,6 +51,10 @@ libqt_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS_qt) \
 
 libqt_plugin_la_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) $(CXXFLAGS_qt) -fPIC
 libqt_plugin_la_LIBADD = $(vlc_qt_libs)
+if HAVE_LIBATOMIC
+libqt_plugin_la_CXXFLAGS += -DQT_HAS_LIBATOMIC
+libqt_plugin_la_LIBADD += -latomic
+endif
 libqt_plugin_la_LDFLAGS = $(AM_LDFLAGS) $(QT_LDFLAGS)
 if HAVE_DARWIN
 libqt_plugin_la_LDFLAGS += -Wl,-framework,Cocoa
@@ -286,6 +290,7 @@ libqt_plugin_la_SOURCES = \
 	util/workerthreadset.hpp util/workerthreadset.cpp \
 	util/base_model.hpp util/base_model_p.hpp util/base_model.cpp \
 	util/color_scheme_model.cpp util/color_scheme_model.hpp \
+	util/ui_notifier.cpp util/ui_notifier.hpp \
 	util/color_svg_image_provider.cpp util/color_svg_image_provider.hpp \
 	util/vlcaccess_image_provider.cpp util/vlcaccess_image_provider.hpp \
 	util/covergenerator.cpp \
@@ -469,6 +474,7 @@ nodist_libqt_plugin_la_SOURCES = \
 	util/workerthreadset.moc.cpp \
 	util/base_model.moc.cpp \
 	util/color_scheme_model.moc.cpp \
+	util/ui_notifier.moc.cpp \
 	util/color_svg_image_provider.moc.cpp \
 	util/vlcaccess_image_provider.moc.cpp \
 	util/imageluminanceextractor.moc.cpp \
@@ -1222,6 +1228,7 @@ libqml_module_widgets_a_QML = \
 	widgets/qml/CheckedDelegate.qml \
 	widgets/qml/ComboBoxExt.qml \
 	widgets/qml/AcrylicBackground.qml \
+	widgets/qml/FloatingNotification.qml \
 	widgets/qml/AnimatedBackground.qml \
 	widgets/qml/CSDThemeButton.qml \
 	widgets/qml/CSDThemeButtonSet.qml \
@@ -1657,6 +1664,25 @@ test_renderer_manager_model_LDADD = $(QT_QTEST_COMMON_ldadd)
 test_renderer_manager_model_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
 check_PROGRAMS += test_renderer_manager_model
 TESTS += test_renderer_manager_model
+
+# test_thread_runner
+
+test_thread_runner_SOURCES = \
+	tests/test_thread_runner.cpp \
+    medialibrary/mlthreadpool.cpp medialibrary/mlthreadpool.hpp
+
+nodist_test_thread_runner_SOURCES = \
+	tests/test_thread_runner.moc \
+    medialibrary/mlthreadpool.moc.cpp
+
+BUILT_SOURCES += tests/test_thread_runner.moc
+CLEANFILES += tests/test_thread_runner.moc
+test_thread_runner_CPPFLAGS = $(QT_QTEST_COMMON_cppflags)
+test_thread_runner_CXXFLAGS = $(QT_QTEST_COMMON_cxxflags)
+test_thread_runner_LDADD = $(QT_QTEST_COMMON_ldadd)
+test_thread_runner_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
+check_PROGRAMS += test_thread_runner
+TESTS += test_thread_runner
 
 # test_vlc_dialog_model
 

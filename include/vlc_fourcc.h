@@ -777,37 +777,50 @@ VLC_API const char * vlc_fourcc_GetDescription( int i_cat, vlc_fourcc_t i_fourcc
  * It returns a list (terminated with the value 0) of YUV fourccs in
  * decreasing priority order for the given chroma.
  *
- * It will always return a non NULL pointer that must not be freed.
+ * It can return a NULL pointer, it must be freed.
  */
-VLC_API const vlc_fourcc_t * vlc_fourcc_GetYUVFallback( vlc_fourcc_t );
+VLC_API vlc_fourcc_t * vlc_fourcc_GetYUVFallback( vlc_fourcc_t );
 
 /**
  * It returns a list (terminated with the value 0) of RGB fourccs in
  * decreasing priority order for the given chroma.
  *
- * It will always return a non NULL pointer that must not be freed.
+ * It can return a NULL pointer, it must be freed.
  */
-VLC_API const vlc_fourcc_t * vlc_fourcc_GetRGBFallback( vlc_fourcc_t );
+VLC_API vlc_fourcc_t * vlc_fourcc_GetRGBFallback( vlc_fourcc_t );
 
 /**
  * It returns a list (terminated with the value 0) of fourccs in decreasing
  * priority order for the given chroma. It will return either YUV or RGB
  * fallbacks depending on whether or not the fourcc given is YUV.
  *
- * It will always return a non NULL pointer that must not be freed.
+ * It can return a NULL pointer, it must be freed.
  */
-VLC_API const vlc_fourcc_t * vlc_fourcc_GetFallback( vlc_fourcc_t );
+VLC_API vlc_fourcc_t * vlc_fourcc_GetFallback( vlc_fourcc_t );
 
 /**
- * It returns true if the given fourcc is YUV and false otherwise.
+ * Chroma subtype
  */
-VLC_API bool vlc_fourcc_IsYUV( vlc_fourcc_t );
+enum vlc_chroma_subtype
+{
+    VLC_CHROMA_SUBTYPE_OTHER,
+    VLC_CHROMA_SUBTYPE_YUV444,
+    VLC_CHROMA_SUBTYPE_YUV440,
+    VLC_CHROMA_SUBTYPE_YUV422,
+    VLC_CHROMA_SUBTYPE_YUV420,
+    VLC_CHROMA_SUBTYPE_YUV411,
+    VLC_CHROMA_SUBTYPE_YUV410,
+    VLC_CHROMA_SUBTYPE_YUV211,
+    VLC_CHROMA_SUBTYPE_RGB,
+    VLC_CHROMA_SUBTYPE_GREY,
+};
 
 /**
  * Chroma related information.
  */
 typedef struct {
     vlc_fourcc_t fcc;
+    enum vlc_chroma_subtype subtype;
     unsigned plane_count;
     struct {
         vlc_rational_t w;
@@ -815,6 +828,7 @@ typedef struct {
     } p[4];
     unsigned pixel_size;        /* Number of bytes per pixel for a plane */
     unsigned pixel_bits;        /* Number of bits actually used bits per pixel for a plane */
+    float color_bits;           /* Average number of bits used by one color */
 } vlc_chroma_description_t;
 
 /**
@@ -822,6 +836,36 @@ typedef struct {
  * if not found.
  */
 VLC_API const vlc_chroma_description_t * vlc_fourcc_GetChromaDescription( vlc_fourcc_t fourcc ) VLC_USED;
+
+/**
+ * Returns true if the chroma description is YUV
+ */
+static inline bool
+vlc_chroma_description_IsYUV(const vlc_chroma_description_t *desc)
+{
+    switch (desc->subtype)
+    {
+        case VLC_CHROMA_SUBTYPE_YUV444:
+        case VLC_CHROMA_SUBTYPE_YUV440:
+        case VLC_CHROMA_SUBTYPE_YUV422:
+        case VLC_CHROMA_SUBTYPE_YUV420:
+        case VLC_CHROMA_SUBTYPE_YUV410:
+        case VLC_CHROMA_SUBTYPE_YUV411:
+        case VLC_CHROMA_SUBTYPE_YUV211:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * It returns true if the given fourcc is YUV and false otherwise.
+ */
+static inline bool vlc_fourcc_IsYUV(vlc_fourcc_t fcc)
+{
+    const vlc_chroma_description_t *desc = vlc_fourcc_GetChromaDescription(fcc);
+    return desc == NULL ? false : vlc_chroma_description_IsYUV(desc);
+}
 
 /**
  * Get the average usable bits per pixel for a chroma.

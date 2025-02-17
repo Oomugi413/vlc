@@ -102,8 +102,8 @@ vlc_modules += {
 }
 
 # libmad codec
-if get_option('mad').allowed()
 mad_dep = disabler()
+if get_option('mad').allowed()
 # TODO add support for a custom folder for libmad
 if cc.check_header('mad.h')
     mad_dep = cc.find_library('mad')
@@ -272,13 +272,11 @@ vlc_modules += {
 
 # aribsub
 aribb24_dep = dependency('aribb24', version: '>= 1.0.1', required: get_option('aribsub'))
-if aribb24_dep.found()
-    cdata.set('HAVE_ARIBB24', 1)
-endif
 vlc_modules += {
     'name' : 'aribsub',
     'sources' : files('arib/aribsub.c'),
     'dependencies' : [aribb24_dep],
+    'cpp_args' : ['-DHAVE_ARIBB24'],
     'enabled' : aribb24_dep.found()
 }
 
@@ -568,10 +566,14 @@ endif
 
 # FFmpeg common helper library
 libavcodec_common = disabler()
+avcodec_compile_dep = disabler()
 if avcodec_dep.found()
+    avcodec_compile_dep = avcodec_dep.partial_dependency(includes:true, compile_args:true)
     libavcodec_common = static_library('avcodec_common',
         files('avcodec/fourcc.c', 'avcodec/chroma.c'),
-        dependencies: [avutil_dep, avcodec_dep],
+        dependencies: [
+            avcodec_dep.partial_dependency(includes:true, compile_args:true)
+        ],
         install: false,
         include_directories: [
             vlc_include_dirs,
@@ -656,7 +658,6 @@ if host_system == 'windows'
     if (get_option('d3d11va').
         enable_auto_if(cc.check_header('libavcodec/d3d11va.h', args: [contrib_inc_args]))
         .allowed())
-        cdata.set('HAVE_LIBAVCODEC_D3D11VA_H', 1)
         vlc_modules += {
             'name' : 'd3d11va',
             'sources' : files(
@@ -667,20 +668,19 @@ if host_system == 'windows'
                     '../packetizer/hevc_nal.c',
                     'avcodec/dxva_blocklist.c',
                 ),
-            'cpp_args' : libcom_cppflags,
+            'c_args' : ['-DHAVE_LIBAVCODEC_D3D11VA_H=1'],
             'link_with' : [ d3d11_common_lib ],
+            'dependencies' : [avcodec_compile_dep],
             'include_directories' : [
                 vlc_include_dirs,
                 include_directories('avcodec')
             ],
-            'dependencies' : [avcodec_dep, avutil_dep],
         }
     endif
 
     if (get_option('dxva2').
         enable_auto_if(cc.check_header('libavcodec/dxva2.h', args: [contrib_inc_args]))
         .allowed() and have_win_desktop)
-        cdata.set('HAVE_LIBAVCODEC_DXVA2_H', 1)
         vlc_modules += {
             'name' : 'dxva2',
             'sources' : files(
@@ -691,12 +691,13 @@ if host_system == 'windows'
                     '../packetizer/hevc_nal.c',
                     'avcodec/dxva_blocklist.c',
                 ),
+            'c_args' : [ '-DHAVE_LIBAVCODEC_DXVA2_H=1' ],
             'link_with' : [ d3d9_common_lib ],
             'include_directories' : [
                 vlc_include_dirs,
                 include_directories('avcodec')
             ],
-            'dependencies' : [avcodec_dep, avutil_dep],
+            'dependencies' : [avcodec_compile_dep, cc.find_library('dxva2')],
         }
     endif
 
@@ -708,6 +709,7 @@ if host_system == 'windows'
             ),
         'dependencies': [
             cc.find_library('uuid'),
+            cc.find_library('msdmo'),
         ],
         'enabled' : have_win_desktop,
     }

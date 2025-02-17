@@ -126,6 +126,7 @@ typedef struct
     /* */
     bool        b_reset_pcr;
     bool        b_readahead;
+    bool        b_wait_empty;
 
     struct
     {
@@ -879,6 +880,20 @@ static int Demux( demux_t *p_demux )
     int32_t i_len;
     dvdnav_status_t status;
 
+    if( p_sys->b_wait_empty )
+    {
+        bool b_empty;
+        es_out_Control( p_sys->p_tf_out, ES_OUT_IS_EMPTY, &b_empty );
+        if( !b_empty )
+        {
+            vlc_tick_sleep( VLC_TICK_FROM_MS(40) );
+            return VLC_DEMUXER_SUCCESS;
+        }
+        p_sys->b_wait_empty = false;
+        /* Don't call RESET_PCR directly as we night need to handle NAV events */
+        p_sys->b_reset_pcr = true;
+    }
+
     if( p_sys->b_readahead )
         status = dvdnav_get_next_cache_block( p_sys->dvdnav, &packet, &i_event,
                                               &i_len );
@@ -951,11 +966,7 @@ static int Demux( demux_t *p_demux )
         vlc_mutex_unlock( &p_sys->still.lock );
 
         if( b_still_init )
-        {
             DemuxForceStill( p_demux );
-            p_sys->b_reset_pcr = true;
-        }
-        vlc_tick_sleep( VLC_TICK_FROM_MS(40) );
         break;
     }
 
@@ -1154,7 +1165,9 @@ static int Demux( demux_t *p_demux )
             if( unlikely(!p_dsi) )
                 break;
             const dsi_gi_t *p_dsi_gi = &p_dsi->dsi_gi;
-            if( p_dsi_gi->vobu_3rdref_ea != 0 )
+            if( p_dsi_gi->vobu_ea != 0 )
+                p_sys->i_vobu_flush = p_dsi_gi->vobu_ea;
+            else if( p_dsi_gi->vobu_3rdref_ea != 0 )
                 p_sys->i_vobu_flush = p_dsi_gi->vobu_3rdref_ea;
             else if( p_dsi_gi->vobu_2ndref_ea != 0 )
                 p_sys->i_vobu_flush = p_dsi_gi->vobu_2ndref_ea;
@@ -1210,8 +1223,10 @@ static int Demux( demux_t *p_demux )
     case DVDNAV_WAIT:
         msg_Dbg( p_demux, "DVDNAV_WAIT" );
 
-        bool b_empty;
-        es_out_Control( p_sys->p_tf_out, ES_OUT_GET_EMPTY, &b_empty );
+        bool b_empty = true;
+        int ret = es_out_Control( p_sys->p_tf_out, ES_OUT_DRAIN );
+        if( ret == VLC_SUCCESS )
+            es_out_Control( p_sys->p_tf_out, ES_OUT_IS_EMPTY, &b_empty );
         if( !b_empty )
         {
             vlc_tick_sleep( VLC_TICK_FROM_MS(40) );
@@ -1563,15 +1578,9 @@ static void DemuxForceStill( demux_t *p_demux )
 {
     demux_sys_t *p_sys = p_demux->p_sys;
 
-    static const uint8_t buffer[] = {
-        0x00, 0x00, 0x01, 0xe0, 0x00, 0x07,
-        0x80, 0x00, 0x00,
-        0x00, 0x00, 0x01, 0xB7,
-    };
-    DemuxBlock( p_demux, buffer, sizeof(buffer) );
-
-    bool b_empty;
-    es_out_Control( p_sys->p_tf_out, ES_OUT_GET_EMPTY, &b_empty );
+    int ret = es_out_Control( p_sys->p_tf_out, ES_OUT_DRAIN );
+    if (ret == VLC_SUCCESS)
+        p_sys->b_wait_empty = true;
 }
 
 /*****************************************************************************

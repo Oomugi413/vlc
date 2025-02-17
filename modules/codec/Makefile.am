@@ -433,7 +433,7 @@ libdxva2_plugin_la_SOURCES = \
 	packetizer/hevc_nal.c packetizer/hevc_nal.h \
 	packetizer/h26x_nal_common.h \
 	codec/avcodec/dxva_blocklist.c
-libdxva2_plugin_la_LIBADD = libd3d9_common.la $(LIBCOM) -luuid
+libdxva2_plugin_la_LIBADD = libd3d9_common.la -ld3d9 $(LIBCOM) -luuid -ldxva2
 if !HAVE_WINSTORE
 if HAVE_AVCODEC_DXVA2
 codec_LTLIBRARIES += libdxva2_plugin.la
@@ -629,7 +629,7 @@ codec_LTLIBRARIES += $(LTLIBqsv)
 libdmo_plugin_la_SOURCES = codec/dmo/dmo.c codec/dmo/dmo.h codec/dmo/buffer.c
 libdmo_plugin_la_LIBADD = $(LIBM)
 if HAVE_WIN32
-libdmo_plugin_la_LIBADD += $(LIBCOM) -luuid
+libdmo_plugin_la_LIBADD += $(LIBCOM) -luuid -lmsdmo
 if !HAVE_WINSTORE
 codec_LTLIBRARIES += libdmo_plugin.la
 endif

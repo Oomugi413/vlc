@@ -137,6 +137,11 @@ public:
         updateCSDSettings();
     }
 
+    ~CSDWin32EventHandler()
+    {
+        QApplication::instance()->removeNativeEventFilter(this);
+    }
+
     static int resizeBorderWidth(QWindow *window)
     {
         // NOTE: When possible, Qt makes the application DPI aware, so `GetSystemMetrics()` would
@@ -467,26 +472,34 @@ private:
 
     CSDButton *overlappingButton(const QPoint point)
     {
-        for (auto button : m_buttonmodel->windowCSDButtons())
+        const auto& buttons = m_buttonmodel->windowCSDButtons();
+        const auto it = std::find_if(buttons.begin(), buttons.end(), [&point](const auto& button)
         {
             QRect rect = button->rect();
             rect.setY(rect.y() + 2); // leave a small gap for top resize which is always within the caption area
             if (rect.contains(point))
-                return button;
-        }
-        return nullptr;
+                return true;
+            return false;
+        });
+        if (it == buttons.end())
+            return nullptr;
+
+        return *it;
     }
 
     void hoverExclusive(CSDButton::ButtonType type)
     {
-        for (auto button : m_buttonmodel->windowCSDButtons()) {
+        const auto& buttons = m_buttonmodel->windowCSDButtons();
+        std::for_each(buttons.begin(), buttons.end(), [type](const auto& button)
+        {
             button->setShowHovered(button->type() == type);
-        }
+        });
     }
 
     void handleButtonActionExclusive(CSDButton::ButtonType type, bool pressed)
     {
-        for (auto button : m_buttonmodel->windowCSDButtons())
+        const auto& buttons = m_buttonmodel->windowCSDButtons();
+        std::for_each(buttons.begin(), buttons.end(), [type, pressed](const auto& button)
         {
             if (pressed)
             {
@@ -500,21 +513,25 @@ private:
                 else
                     button->unsetExternalPressed();
             }
-        }
+        });
     }
 
     void resetPressedState()
     {
-        for (auto button : m_buttonmodel->windowCSDButtons())
+        const auto& buttons = m_buttonmodel->windowCSDButtons();
+        std::for_each(buttons.begin(), buttons.end(), [](const auto& button)
+        {
             button->unsetExternalPressed();
+        });
     }
 
     void setAllUnhovered()
     {
-        for (auto button : m_buttonmodel->windowCSDButtons())
+        const auto& buttons = m_buttonmodel->windowCSDButtons();
+        std::for_each(buttons.begin(), buttons.end(), [](const auto& button)
         {
             button->setShowHovered(false);
-        }
+        });
     }
 
     bool m_useClientSideDecoration;

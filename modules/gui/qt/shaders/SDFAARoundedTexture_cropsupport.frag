@@ -13,6 +13,8 @@
 //          SAME IN SDFAARoundedTexture.frag.
 
 #define ANTIALIASING
+#define BACKGROUND_SUPPORT
+#define CUSTOM_SOFTEDGE
 
 /*****************************************************************************
  * Copyright (C) 2024 VLC authors and VideoLAN
@@ -57,12 +59,17 @@ layout(std140, binding = 0) uniform buf {
 #ifdef CROP_SUPPORT
     vec2 cropRate;
 #endif
+#ifdef BACKGROUND_SUPPORT
+    vec4 backgroundColor;
+#endif
     float radiusTopRight;
     float radiusBottomRight;
     float radiusTopLeft;
     float radiusBottomLeft;
+#ifdef CUSTOM_SOFTEDGE
     float softEdgeMin;
     float softEdgeMax;
+#endif
 };
 
 layout(binding = 1) uniform sampler2D source;
@@ -124,10 +131,22 @@ void main()
     vec4 texel = texture(source, qt_TexCoord0);
 #endif
 
+#ifdef BACKGROUND_SUPPORT
+    // Source over blending (S + D * (1 - S.a)):
+    texel = texel + backgroundColor * (1.0 - texel.a);
+#endif
+
+#ifdef ANTIALIASING
+#ifndef CUSTOM_SOFTEDGE
+    float softEdgeMax = fwidth(dist) * 0.75;
+    float softEdgeMin = -softEdgeMax;
+#endif
+    // Breathing room (shrink):
+    dist += softEdgeMax;
+
     // Soften the outline, as recommended by the Valve paper, using smoothstep:
     // "Improved Alpha-Tested Magnification for Vector Textures and Special Effects"
     // NOTE: The whole texel is multiplied, because of premultiplied alpha.
-#ifdef ANTIALIASING
     float factor = smoothstep(softEdgeMin, softEdgeMax, dist);
 #else
     float factor = step(0.0, dist);

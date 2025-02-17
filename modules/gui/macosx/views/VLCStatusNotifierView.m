@@ -23,10 +23,12 @@
 #import "VLCStatusNotifierView.h"
 
 #import "extensions/NSString+Helpers.h"
+#import "library/VLCLibraryCollectionView.h"
 #import "library/VLCLibraryModel.h"
 
 NSString * const VLCStatusNotifierViewActivated = @"VLCStatusNotifierViewActivated";
 NSString * const VLCStatusNotifierViewDeactivated = @"VLCStatusNotifierViewDeactivated";
+NSString * const VLCMessageTimeoutTimerUserInfoMessageKey = @"VLCMessageTimeoutTimerUserInfoMessageKey";
 
 @interface VLCStatusNotifierView ()
 
@@ -34,6 +36,7 @@ NSString * const VLCStatusNotifierViewDeactivated = @"VLCStatusNotifierViewDeact
 @property BOOL permanentDiscoveryMessageActive;
 @property NSMutableSet<NSString *> *longNotifications;
 @property NSMutableArray<NSString *> *messages;
+@property NSMutableDictionary<NSString *, NSTimer *> *activeTimers;
 
 @property (readonly) NSString *loadingLibraryItemsMessage;
 @property (readonly) NSString *libraryItemsLoadedMessage;
@@ -56,6 +59,7 @@ NSString * const VLCStatusNotifierViewDeactivated = @"VLCStatusNotifierViewDeact
     _libraryItemsLoadedMessage = _NS("Library items loaded");
     _discoveringMediaMessage = _NS("Discovering media");
     _discoveryCompletedMessage = _NS("Media discovery completed");
+    _activeTimers = NSMutableDictionary.dictionary;
 
     self.label.stringValue = _NS("Idle");
     self.progressIndicator.hidden = YES;
@@ -90,13 +94,30 @@ NSString * const VLCStatusNotifierViewDeactivated = @"VLCStatusNotifierViewDeact
     if (self.messages.count == 0) {
         [NSNotificationCenter.defaultCenter postNotificationName:VLCStatusNotifierViewActivated object:self];
     }
-    [self.messages addObject:message];
+    NSString *finalMessage = message;
+    const NSInteger matchingIndex = [self.messages indexOfObjectPassingTest:^BOOL(NSString * const string, NSUInteger, BOOL *){
+        return [string hasPrefix:message];
+    }];
+    if (matchingIndex != NSNotFound) {
+        finalMessage = [[self.messages objectAtIndex:matchingIndex] stringWithIncrementedTrailingNumber];
+        [self.messages removeObjectAtIndex:matchingIndex];
+    }
+    [self.messages addObject:finalMessage];
     self.label.stringValue = [self.messages componentsJoinedByString:@"\n"];
 }
 
 - (void)removeMessage:(NSString *)message
 {
-    [self.messages removeObject:message];
+    if (message == nil) {
+        return;
+    }
+
+    const NSInteger matchingIndex = [self.messages indexOfObjectPassingTest:^BOOL(NSString * const string, NSUInteger, BOOL *){
+        return [string hasPrefix:message];
+    }];
+    if (matchingIndex != NSNotFound) {
+        [self.messages removeObjectAtIndex:matchingIndex];
+    }
     if (self.messages.count == 0) {
         [NSNotificationCenter.defaultCenter postNotificationName:VLCStatusNotifierViewDeactivated object:self];
         return;
@@ -144,13 +165,38 @@ NSString * const VLCStatusNotifierViewDeactivated = @"VLCStatusNotifierViewDeact
             [self presentTransientMessage:self.libraryItemsLoadedMessage];
             [self removeMessage:self.loadingLibraryItemsMessage];
         }
+    } else if ([notificationName isEqualToString:VLCLibraryCollectionViewItemAdjustmentBigger]) {
+        [self presentTransientMessage:_NS("Increased grid view item size")];
+    } else if ([notificationName isEqualToString:VLCLibraryCollectionViewItemAdjustmentSmaller]) {
+        [self presentTransientMessage:_NS("Decreased grid view item size")];
     }
+}
+
+- (void)messageTimeout:(NSTimer *)timer
+{
+    NSString * const message =
+        [timer.userInfo objectForKey:VLCMessageTimeoutTimerUserInfoMessageKey];
+    [self removeMessage:message];
+    [self.activeTimers removeObjectForKey:message];
 }
 
 - (void)presentTransientMessage:(NSString *)message
 {
     [self addMessage:message];
-    [self performSelector:@selector(removeMessage:) withObject:message afterDelay:2.0];
+
+    NSTimer * const existingTimer = [self.activeTimers objectForKey:message];
+    if (existingTimer != nil) {
+        [existingTimer invalidate];
+        [self.activeTimers removeObjectForKey:message];
+    }
+
+    NSTimer * const newTimer =
+        [NSTimer scheduledTimerWithTimeInterval:2.0
+                                         target:self
+                                       selector:@selector(messageTimeout:)
+                                       userInfo:@{VLCMessageTimeoutTimerUserInfoMessageKey: message}
+                                        repeats:NO];
+    [self.activeTimers setObject:newTimer forKey:message];
 }
 
 @end

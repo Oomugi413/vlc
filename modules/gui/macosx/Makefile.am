@@ -101,6 +101,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/library/VLCInputNodePathControlItem.m \
 	gui/macosx/library/VLCLibraryAbstractGroupingDataSource.h \
 	gui/macosx/library/VLCLibraryAbstractGroupingDataSource.m \
+	gui/macosx/library/VLCLibraryAbstractMediaLibrarySegmentViewController.h \
+	gui/macosx/library/VLCLibraryAbstractMediaLibrarySegmentViewController.m \
 	gui/macosx/library/VLCLibraryAbstractSegmentViewController.h \
 	gui/macosx/library/VLCLibraryAbstractSegmentViewController.m \
 	gui/macosx/library/VLCLibraryCarouselViewItemView.h \
@@ -133,6 +135,7 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/library/VLCLibraryImageCache.m \
 	gui/macosx/library/VLCLibraryItemInternalMediaItemsDataSource.h \
 	gui/macosx/library/VLCLibraryItemInternalMediaItemsDataSource.m \
+	gui/macosx/library/VLCLibraryItemPresentingCapable.h \
 	gui/macosx/library/VLCLibraryMasterDetailViewTableViewDataSource.h \
 	gui/macosx/library/VLCLibraryMasterDetailViewTableViewDelegate.h \
 	gui/macosx/library/VLCLibraryMasterDetailViewTableViewDelegate.m \
@@ -187,6 +190,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/library/VLCLibraryWindowTitlesSidebarViewController.m \
 	gui/macosx/library/VLCLibraryWindowToolbarDelegate.h \
 	gui/macosx/library/VLCLibraryWindowToolbarDelegate.m \
+	gui/macosx/library/VLCMediaLibraryFolderObserver.h \
+	gui/macosx/library/VLCMediaLibraryFolderObserver.m \
 	gui/macosx/library/groups-library/VLCLibraryGroupsDataSource.h \
 	gui/macosx/library/groups-library/VLCLibraryGroupsDataSource.m \
 	gui/macosx/library/groups-library/VLCLibraryGroupsViewController.h \
@@ -374,6 +379,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/views/VLCDefaultValueSliderCell.m \
 	gui/macosx/views/VLCDragDropView.h \
 	gui/macosx/views/VLCDragDropView.m \
+	gui/macosx/views/VLCFileDragRecognisingView.h \
+	gui/macosx/views/VLCFileDragRecognisingView.m \
 	gui/macosx/views/VLCImageButton.h \
 	gui/macosx/views/VLCImageButton.m \
 	gui/macosx/views/VLCImageView.h \
@@ -408,8 +415,6 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/views/VLCVolumeSlider.m \
 	gui/macosx/views/VLCVolumeSliderCell.h \
 	gui/macosx/views/VLCVolumeSliderCell.m \
-	gui/macosx/views/VLCWrappableTextField.h \
-	gui/macosx/views/VLCWrappableTextField.m \
 	gui/macosx/windows/VLCAboutWindowController.h \
 	gui/macosx/windows/VLCAboutWindowController.m \
 	gui/macosx/windows/VLCDetachedAudioWindow.h \

@@ -24,6 +24,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+#import "views/VLCFileDragRecognisingView.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 /*****************************************************************************
@@ -34,14 +36,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@protocol VLCDragDropTarget
-@required
-- (BOOL)handlePasteBoardFromDragSession:(NSPasteboard *)aPasteboard;
-@end
+@interface VLCDragDropView : VLCFileDragRecognisingView
 
-@interface VLCDragDropView : NSView
-
-@property (nonatomic, assign) id<VLCDragDropTarget> dropTarget;
 @property (nonatomic, assign) BOOL drawBorder;
 
 - (void)enablePlayQueueItems;

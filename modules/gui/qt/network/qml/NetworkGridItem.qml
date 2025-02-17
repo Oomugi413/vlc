@@ -44,6 +44,8 @@ Widgets.GridItem {
         return ""
     }
 
+    fillMode: Image.PreserveAspectCrop
+
     cacheImage: true // we may have network thumbnail
 
     fallbackImage: {
@@ -69,8 +71,8 @@ Widgets.GridItem {
     }
 
     pictureOverlay: Item {
-        width: root.pictureWidth
-        height: root.pictureHeight
+        implicitWidth: root.pictureWidth
+        implicitHeight: root.pictureHeight
 
         Widgets.VideoProgressBar {
             id: progressBar

@@ -230,6 +230,7 @@ typedef struct
     vlc_tick_t  i_buffering_extra_initial;
     vlc_tick_t  i_buffering_extra_stream;
     vlc_tick_t  i_buffering_extra_system;
+    bool        b_draining;
 
     /* Record */
     sout_stream_t *p_sout_record;
@@ -262,6 +263,7 @@ static void EsOutChangePosition(es_out_sys_t *out, bool b_flush, es_out_id_t *p_
 static void EsOutProgramChangePause(es_out_sys_t *out, bool b_paused, vlc_tick_t i_date);
 static void EsOutProgramsChangeRate(es_out_sys_t *out);
 static void EsOutDecodersStopBuffering(es_out_sys_t *out, bool b_forced);
+static void EsOutDrainDecoder(es_out_sys_t *p_sys, es_out_id_t *es, bool wait);
 static void EsOutGlobalMeta(es_out_sys_t *p_out, const vlc_meta_t *p_meta);
 static void EsOutMeta(es_out_sys_t *p_out, const vlc_meta_t *p_meta, const vlc_meta_t *p_progmeta);
 static int EsOutEsUpdateFmt(es_out_id_t *es, const es_format_t *fmt);
@@ -695,17 +697,13 @@ static vlc_tick_t EsOutGetWakeup(es_out_sys_t *p_sys)
     return input_clock_GetWakeup( p_sys->p_pgrm->p_input_clock );
 }
 
-static bool EsOutDecodersIsEmpty(es_out_sys_t *p_sys)
+
+static bool EsOutIsEmpty(es_out_sys_t *p_sys)
 {
+    if( p_sys->b_buffering )
+        return true;
+
     es_out_id_t *es;
-
-    if( p_sys->b_buffering && p_sys->p_pgrm )
-    {
-        EsOutDecodersStopBuffering(p_sys, true);
-        if( p_sys->b_buffering )
-            return true;
-    }
-
     foreach_es_then_es_slaves(es)
     {
         if( es->p_dec && !vlc_input_decoder_IsEmpty( es->p_dec ) )
@@ -714,6 +712,30 @@ static bool EsOutDecodersIsEmpty(es_out_sys_t *p_sys)
             return false;
     }
     return true;
+}
+
+static int EsOutDrain(es_out_sys_t *p_sys)
+{
+    if( p_sys->p_pgrm == NULL ) /* Nothing to drain, assume es_out is empty */
+        return VLC_SUCCESS;
+
+    if( p_sys->b_buffering )
+    {
+        EsOutDecodersStopBuffering(p_sys, true);
+        if( p_sys->b_buffering )
+            return VLC_EGENERIC;
+    }
+
+    if( !p_sys->b_draining )
+    {
+        es_out_id_t *id;
+        foreach_es_then_es_slaves(id)
+            if (id->p_dec != NULL)
+                EsOutDrainDecoder(p_sys, id, false);
+        p_sys->b_draining = true;
+    }
+
+    return VLC_SUCCESS;
 }
 
 static void EsOutUpdateDelayJitter(es_out_sys_t *p_sys)
@@ -944,6 +966,7 @@ static void EsOutChangePosition(es_out_sys_t *p_sys, bool b_flush,
     p_sys->i_buffering_extra_initial = 0;
     p_sys->i_buffering_extra_stream = 0;
     p_sys->i_buffering_extra_system = 0;
+    p_sys->b_draining = false;
     p_sys->i_preroll_end = -1;
     p_sys->i_prev_stream_level = -1;
 }
@@ -2925,6 +2948,7 @@ static int EsOutSend(es_out_t *out, es_out_id_t *es, block_t *p_block )
     }
 
     vlc_mutex_lock( &p_sys->lock );
+    assert( !p_sys->b_draining );
 
     /* Shift all slaves timestamps with the main source normal time. This will
      * allow to synchronize 2 demuxers with different time bases. Remove the
@@ -3606,10 +3630,13 @@ static int EsOutVaControlLocked(es_out_sys_t *p_sys, input_source_t *source,
         return VLC_SUCCESS;
     }
 
-    case ES_OUT_GET_EMPTY:
+    case ES_OUT_DRAIN:
+        return EsOutDrain(p_sys);
+
+    case ES_OUT_IS_EMPTY:
     {
         bool *pb = va_arg( args, bool* );
-        *pb = EsOutDecodersIsEmpty(p_sys);
+        *pb = EsOutIsEmpty( p_sys );
         return VLC_SUCCESS;
     }
 
@@ -3962,10 +3989,7 @@ static int EsOutVaPrivControlLocked(es_out_sys_t *p_sys, input_source_t *source,
     }
     case ES_OUT_PRIV_SET_EOS:
     {
-        es_out_id_t *id;
-        foreach_es_then_es_slaves(id)
-            if (id->p_dec != NULL)
-                EsOutDrainDecoder(p_sys, id, false);
+        EsOutDrain(p_sys);
         return VLC_SUCCESS;
     }
     case ES_OUT_PRIV_SET_VBI_PAGE:
@@ -4097,6 +4121,7 @@ input_EsOutNew(input_thread_t *p_input, input_source_t *main_source, float rate,
     p_sys->rate = rate;
 
     p_sys->b_buffering = true;
+    p_sys->b_draining = false;
     p_sys->i_preroll_end = -1;
     p_sys->i_prev_stream_level = -1;
 

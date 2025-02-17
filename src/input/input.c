@@ -331,7 +331,10 @@ input_thread_t * input_Create( vlc_object_t *p_parent, input_item_t *p_item,
     vlc_interrupt_init(&priv->interrupt);
 
     /* Create Object Variables for private use only */
-    input_ConfigVarInit( p_input );
+
+    vlc_object_InitInputConfig(VLC_OBJECT(p_input),
+                               input_priv(p_input)->type != INPUT_TYPE_PREPARSING,
+                               true);
 
     priv->b_low_delay = var_InheritBool( p_input, "low-delay" );
     priv->i_jitter_max = VLC_TICK_FROM_MS(var_InheritInteger( p_input, "clock-jitter" ));
@@ -667,7 +670,7 @@ static void MainLoop( input_thread_t *p_input, bool b_interactive )
 
                 b_paused_at_eof = false;
             }
-            else if( !es_out_GetEmpty( input_priv(p_input)->p_es_out ) )
+            else if( !es_out_IsEmpty( input_priv(p_input)->p_es_out ) )
             {
                 msg_Dbg( p_input, "waiting decoder fifos to empty" );
                 i_wakeup = vlc_tick_now() + INPUT_IDLE_SLEEP;

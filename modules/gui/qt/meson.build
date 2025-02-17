@@ -124,6 +124,7 @@ moc_headers = files(
     'util/workerthreadset.hpp',
     'util/base_model.hpp',
     'util/color_scheme_model.hpp',
+    'util/ui_notifier.hpp',
     'util/color_svg_image_provider.hpp',
     'util/vlcaccess_image_provider.hpp',
     'util/csdbuttonmodel.hpp',
@@ -178,7 +179,7 @@ if (x11_dep.found() and
     )
 endif
 
-some_sources = files(
+qt_plugin_sources = files(
     'qt.cpp',
     'qt.hpp',
     'plugins.hpp',
@@ -419,6 +420,8 @@ some_sources = files(
     'util/base_model_p.hpp',
     'util/color_scheme_model.cpp',
     'util/color_scheme_model.hpp',
+    'util/ui_notifier.cpp',
+    'util/ui_notifier.hpp',
     'util/color_svg_image_provider.cpp',
     'util/color_svg_image_provider.hpp',
     'util/vlcaccess_image_provider.cpp',
@@ -507,7 +510,7 @@ some_sources = files(
 )
 
 if host_system == 'windows'
-    some_sources += files(
+    qt_plugin_sources += files(
         'maininterface/mainctx_win32.cpp',
         'maininterface/mainctx_win32.hpp',
         'maininterface/compositor_win7.cpp',
@@ -524,7 +527,7 @@ if (x11_dep.found() and
     xcb_dep.found() and
     xcb_damage_dep.found() and
     xcb_xfixes_dep.found())
-    some_sources += files(
+    qt_plugin_sources += files(
         'maininterface/compositor_x11.cpp',
         'maininterface/compositor_x11_renderclient.cpp',
         'maininterface/compositor_x11_renderwindow.cpp',
@@ -825,6 +828,7 @@ qml_modules += {
         'widgets/qml/CheckedDelegate.qml',
         'widgets/qml/ComboBoxExt.qml',
         'widgets/qml/AcrylicBackground.qml',
+        'widgets/qml/FloatingNotification.qml',
         'widgets/qml/AnimatedBackground.qml',
         'widgets/qml/CSDThemeButton.qml',
         'widgets/qml/CSDThemeButtonSet.qml',
@@ -918,6 +922,12 @@ if qt6_dep.found()
         qt_rcc_extra_arguments += '-compress-algo=zstd'
     else
         qt_rcc_extra_arguments += '-compress-algo=zlib'
+    endif
+
+    libatomic = cc.find_library('atomic', required: false)
+    if libatomic.found()
+        qt_extra_deps += cc.find_library('atomic', required: false)
+        qt_extra_flags += '-DQT_HAS_LIBATOMIC'
     endif
 
     prog_python = find_program('python3')
@@ -1064,36 +1074,35 @@ if qt6_dep.found()
         qt_cppargs += libcom_cppflags
     endif
 
-    if not (host_system in ['windows', 'darwin'])
-        #Qt GTK theme module
-        gtk_dep = dependency(
-            'gtk+-3.0',
-            version: '>=3.20',
-            required: get_option('qt_gtk')
-        )
+    #Qt GTK theme module
+    gtk_dep = dependency(
+        'gtk+-3.0',
+        version: '>=3.20',
+        required: get_option('qt_gtk').disable_auto_if(host_system in ['windows', 'darwin'])
+    )
 
-        if gtk_dep.found()
-            vlc_modules += {
-                'name' : 'qt_gtktheme',
-                'sources' : files(
-                    'style/gtkthemeprovider/gtk_compat.cpp',
-                    'style/gtkthemeprovider/gtk_compat.h',
-                    'style/gtkthemeprovider/gtkthemeprovider.cpp',
-                    'style/gtkthemeprovider/gtk_util.cpp',
-                    'style/gtkthemeprovider/gtk_util.h',
-                    'style/gtkthemeprovider/nav_button_provider_gtk.cpp',
-                    'style/gtkthemeprovider/nav_button_provider_gtk.h',
-                    'style/gtkthemeprovider/scoped_gobject.h'
-                ),
-                'dependencies' : [gtk_dep]
-            }
+    vlc_modules += {
+        'name' : 'qt_gtktheme',
+        'sources' : files(
+            'style/gtkthemeprovider/gtk_compat.cpp',
+            'style/gtkthemeprovider/gtk_compat.h',
+            'style/gtkthemeprovider/gtkthemeprovider.cpp',
+            'style/gtkthemeprovider/gtk_util.cpp',
+            'style/gtkthemeprovider/gtk_util.h',
+            'style/gtkthemeprovider/nav_button_provider_gtk.cpp',
+            'style/gtkthemeprovider/nav_button_provider_gtk.h',
+            'style/gtkthemeprovider/scoped_gobject.h'
+        ),
+        'dependencies' : [gtk_dep],
+        'enabled' : gtk_dep.found()
+    }
 
-            qt_extra_flags += '-DQT_HAS_GTK'
-        endif
+    if gtk_dep.found()
+        qt_extra_flags += '-DQT_HAS_GTK'
     endif
 
     if host_system == 'windows'
-        some_sources += files('maininterface/win32windoweffects_module.cpp',
+        qt_plugin_sources += files('maininterface/win32windoweffects_module.cpp',
                               'maininterface/win32windoweffects_module.hpp')
     else
         kf6WindowSystem_dep = dependency('KF6WindowSystem',
@@ -1115,22 +1124,21 @@ if qt6_dep.found()
         qt_extra_flags += '-DUPDATE_CHECK'
     endif
 
-    if (xcb_dep.found() and xcb_render_dep.found() and xcb_xfixes_dep.found())
 
-        vlc_modules += {
-            'name' : 'qt_x11',
-            'include_directories' : qt_include_dir,
-            'sources' : files(
-                'maininterface/qt_x11_plugin.c',
-                'maininterface/compositor_x11_utils.hpp',
-                'maininterface/compositor_x11_utils.cpp',
-                'util/csdmenu_module.h',
-                'util/csdmenu_x11.cpp',
-                'util/csdmenu_x11.h'
-            ),
-            'dependencies' : [xcb_dep, xcb_render_dep, xcb_xfixes_dep]
-        }
-    endif
+    vlc_modules += {
+        'name' : 'qt_x11',
+        'include_directories' : qt_include_dir,
+        'sources' : files(
+            'maininterface/qt_x11_plugin.c',
+            'maininterface/compositor_x11_utils.hpp',
+            'maininterface/compositor_x11_utils.cpp',
+            'util/csdmenu_module.h',
+            'util/csdmenu_x11.cpp',
+            'util/csdmenu_x11.h'
+        ),
+        'dependencies' : [xcb_dep, xcb_render_dep, xcb_xfixes_dep],
+        'enabled': xcb_dep.found() and xcb_render_dep.found() and xcb_xfixes_dep.found(),
+    }
 
     qt6pre_files = qt6.preprocess(ui_files: ui_sources,
         moc_headers: moc_headers,
@@ -1143,7 +1151,7 @@ if qt6_dep.found()
 
     vlc_modules += {
         'name' : 'qt',
-        'sources' : [qt6pre_files, qt6pre_qrc, shader_targets, shaders_processed, qt_sources, some_sources],
+        'sources' : [qt6pre_files, qt6pre_qrc, shader_targets, shaders_processed, qt_sources, qt_plugin_sources],
         'extra_files' : [shader_files],
         'dependencies' : [qt_extra_deps, qt6_dep, corefoundation_dep],
         'include_directories' : qt_include_dir,
@@ -1223,6 +1231,25 @@ if qt6_dep.found()
             'link_with': [libvlccore, libvlc],
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
+
+        vlc_tests += {
+            'name': 'test_qt_thread_runner',
+            'sources': files(
+                'tests/test_thread_runner.cpp',
+                'medialibrary/mlthreadpool.cpp',
+                'medialibrary/mlthreadpool.hpp'
+            ),
+            'moc_sources': files(
+                'tests/test_thread_runner.cpp'
+            ),
+            'moc_headers': files(
+                'medialibrary/mlthreadpool.hpp'
+            ),
+            'suite': ['qt'],
+            'include_directories' : qt_include_dir,
+            'dependencies': [qt6_dep, qtest_qt6_dep]
+        }
+
 
         vlc_tests += {
             'name': 'test_qt_dialog_model',

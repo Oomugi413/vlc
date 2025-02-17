@@ -31,6 +31,16 @@ typedef NS_ENUM(NSUInteger, VLCLibraryCollectionViewItemAspectRatio) {
 
 NS_ASSUME_NONNULL_BEGIN
 
+extern NSString * const VLCLibraryCollectionViewItemAdjustmentKey;
+
+@interface VLCCollectionViewItemSizing: NSObject
+
+@property (readwrite) NSInteger unclampedRowItemCount;
+@property (readwrite) NSUInteger rowItemCount;
+@property (readwrite) NSSize itemSize;
+
+@end
+
 @interface VLCLibraryUIUnits : NSObject
 
 // Note that these values are not necessarily linked to the layout defined in the .xib files.
@@ -56,6 +66,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (class, readonly) const CGFloat dynamicCollectionViewItemMinimumWidth;
 @property (class, readonly) const CGFloat dynamicCollectionViewItemMaximumWidth;
+@property (class, readonly) const CGFloat collectionViewItemMinimumWidth;
+@property (class, readonly) const unsigned short collectionViewMinItemsInRow;
 
 @property (class, readonly) const CGFloat collectionViewItemSpacing;
 @property (class, readonly) const NSEdgeInsets collectionViewSectionInsets;
@@ -85,6 +97,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (const NSSize)adjustedCollectionViewItemSizeForCollectionView:(NSCollectionView *)collectionView
                                                      withLayout:(VLCLibraryCollectionViewFlowLayout *)collectionViewLayout
                                            withItemsAspectRatio:(VLCLibraryCollectionViewItemAspectRatio)itemsAspectRatio;
+
++ (VLCCollectionViewItemSizing *)adjustedItemSizingForCollectionView:(NSCollectionView *)collectionView
+                                                          withLayout:(VLCLibraryCollectionViewFlowLayout *)collectionViewLayout
+                                                withItemsAspectRatio:(VLCLibraryCollectionViewItemAspectRatio)itemsAspectRatio;
 
 @end
 
